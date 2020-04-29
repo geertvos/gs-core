@@ -36,6 +36,7 @@ A full high level implementation can be found in this project: https://github.co
 | JMP | | Move pc to ARG |
 | POP | | Pop a value from the stack |
 | NATIVE | | Pop the function from the stack and treat as native function |
+| THROW | | Pop the exception from the stack throw it. |
 
 
 
