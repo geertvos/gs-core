@@ -3,9 +3,6 @@ The GVM is a stack based VM that executes a simple bytecode instruction set. Loo
 
 # Instruction set
 
-Types:
-Integer: 4 bytes
-
 | Instruction | Arguments | Description  |
 |-----|---|---|
 | NEW |  | Push a reference to a new object on the stack |
