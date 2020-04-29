@@ -1,7 +1,7 @@
 # GS Core
 The GS Core project implements the GVM VM and bytecode language. The GVM is an object oriented, functional and stack based VM, loosely based on Javascript. 
 
-A full high level implementatino can be found in this project: https://github.com/geertvos/gs-lang
+A full high level implementation can be found in this project: https://github.com/geertvos/gs-lang
 
 # Instruction set
 
