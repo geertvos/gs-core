@@ -1,8 +1,9 @@
-package net.geertvos.gvm.core;
+package net.geertvos.gvm.debug;
 
 
 import java.io.PrintStream;
 
+import net.geertvos.gvm.core.GVM;
 import net.geertvos.gvm.program.GVMFunction;
 import net.geertvos.gvm.program.GVMProgram;
 import net.geertvos.gvm.streams.RandomAccessByteStream;
