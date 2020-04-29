@@ -4,6 +4,7 @@ package net.geertvos.gvm.core;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Stack;
 
 import net.geertvos.gvm.core.Value.TYPE;
@@ -25,24 +26,24 @@ import net.geertvos.gvm.streams.RandomAccessByteStream;
  * - string
  * - object
  * 
- * @author geertvos
+ * @author Geert Vos
  */
 public class GVM {
 	
 	//The stack for the virtual machine, holds local variables and intermediate results
-	private Stack<Value> stack = new Stack<Value>();
+	private final Stack<Value> stack = new Stack<Value>();
 
 	//The start location on the stack of the current frame
 	private int framepointer;
 	
 	//The current identifier of the function
-	private int function;
+	private int functionPointer;
 
 	//The garbage collector, by default a simple depth first search trough the object references on the stack
 	private GarbageCollector gc = new MarkAndSweepGarbageCollector();
 	
 	//The heap contains the objects
-	private HashMap<Integer,GVMObject> heap = new HashMap<Integer,GVMObject>();
+	private final Map<Integer,GVMObject> heap = new HashMap<Integer,GVMObject>();
 
 	//Bytecode of the current function
 	private RandomAccessByteStream bytecode;
@@ -58,7 +59,7 @@ public class GVM {
 	public void run()
 	{
 		framepointer = 0;
-		function = 0;
+		functionPointer = 0;
 		stack.clear();
 		heap.clear();
 		
@@ -148,33 +149,33 @@ public class GVM {
 				{
 					//Pop the function reference
 					int argCount = bytecode.readInt();
-					Value arg = stack.pop();
-					if( arg.getType() != Value.TYPE.FUNCTION ){
-						handleException("Calling a non function: "+arg);
+					Value calleeFunction = stack.pop();
+					if( calleeFunction.getType() != Value.TYPE.FUNCTION ){
+						handleException("Calling a non function: "+calleeFunction);
 						break;
 					}
 
 					//Set the current function pointer
-					int callingFunction = function;
-					function = arg.getValue();
-					GVMFunction fstruct = program.getFunction(function);
+					int callerFunction = functionPointer;
+					functionPointer = calleeFunction.getValue();
+					GVMFunction functionDescription = program.getFunction(functionPointer);
 					//Obtain the number of parameters
-					int paramCount = fstruct.getParameters().size() ;
+					int paramCount = functionDescription.getParameters().size() ;
 					if(argCount != paramCount) {
-						handleException("Argument count for function "+function+" is "+paramCount+", but "+argCount+" provided.");
+						handleException("Argument count for function "+functionPointer+" is "+paramCount+", but "+argCount+" provided.");
 						break;
 					}
 					
 					//Store them for now
 					Value[] params = new Value[paramCount];
-					for( int i=paramCount-1;i>=0;i--)
+					for( int i=paramCount-1; i >= 0; i--)
 						params[i] = stack.pop();
 					
 					Value thisval = stack.pop();
 					//Push state on the stack
 					stack.push( new Value(bytecode.getPointerPosition(), Value.TYPE.NUMBER, "Program counter") );
 					stack.push( new Value(framepointer, Value.TYPE.NUMBER, "Frame pointer") );
-					stack.push( new Value(callingFunction, Value.TYPE.NUMBER, "Calling function") );
+					stack.push( new Value(callerFunction, Value.TYPE.NUMBER, "Calling function") );
 					
 					
 					//Push this and arguments on the stack
@@ -185,11 +186,11 @@ public class GVM {
 						stack.push(params[i]);
 						params[i].setComment("Function parameter "+i);
 					}
-					for( int i=0;i<fstruct.getLocals().size();i++)
+					for( int i=0;i<functionDescription.getLocals().size();i++)
 					{
 						stack.push(new Value(0,TYPE.UNDEFINED,"Local variable"));
 					}					
-					bytecode = fstruct.getBytecode();
+					bytecode = functionDescription.getBytecode();
 					bytecode.seek(0);
 				}
 				break;
@@ -199,21 +200,21 @@ public class GVM {
 					Value v = stack.pop();
 					
 					//Pop locals
-					int localCount = program.getFunction(function).getLocals().size() ;
+					int localCount = program.getFunction(functionPointer).getLocals().size() ;
 					for( int i=0;i<localCount;i++)
 					{
 						stack.pop();
 					}
 					//Pop arguments, TODO: issue.. caller can supply different number of arguments.
-					int paramCount = program.getFunction(function).getParameters().size() ;
+					int paramCount = program.getFunction(functionPointer).getParameters().size() ;
 					for( int i=0;i<paramCount;i++) {
 						stack.pop();
 					}
 					stack.pop(); // this
-					function = stack.pop().getValue(); //Function pointer
+					functionPointer = stack.pop().getValue(); //Function pointer
 					framepointer = stack.pop().getValue(); //FP
 					int pc = stack.pop().getValue(); //PC
-					bytecode = program.getFunction(function).getBytecode();
+					bytecode = program.getFunction(functionPointer).getBytecode();
 					bytecode.seek(pc);
 					stack.push(v);
 					gc.collect(heap, stack);
@@ -243,15 +244,16 @@ public class GVM {
 							break;
 						}
 						if(variableName.equals("lowercase")) {
-							String s = program.getString(reference.getValue()).toLowerCase();
-							stack.push(new Value(s.length(), TYPE.NUMBER));
+							String lowercased = program.getString(reference.getValue()).toLowerCase();
+							int ref = program.addString(lowercased);
+							stack.push(new Value(ref, Value.TYPE.STRING, "lowercase"));
 							break;
 						}
-						handleException("String does not support: "+variableName+" at pc: "+bytecode.getPointerPosition()+" f:"+function);
+						handleException("String does not support: "+variableName+" at pc: "+bytecode.getPointerPosition()+" f:"+functionPointer);
 						break;
 					}
 					if( reference.getType() != Value.TYPE.OBJECT ){
-						handleException("Not a reference to an object: "+reference+" pc: "+bytecode.getPointerPosition()+" f:"+function);
+						handleException("Not a reference to an object: "+reference+" pc: "+bytecode.getPointerPosition()+" f:"+functionPointer);
 						break;
 					}
 					GVMObject vo = heap.get(reference.getValue());
@@ -518,10 +520,10 @@ public class GVM {
 		while( stack.size() > framepointer )
 			stack.pop();
 		
-		function = stack.pop().getValue(); //Function pointer
+		functionPointer = stack.pop().getValue(); //Function pointer
 		framepointer = stack.pop().getValue(); //FP
 		int pc = stack.pop().getValue(); //PC
-		bytecode = program.getFunction(function).getBytecode();
+		bytecode = program.getFunction(functionPointer).getBytecode();
 		bytecode.seek(pc);
 		return true;
 	}
@@ -534,7 +536,7 @@ public class GVM {
 	private void handleException( String message )
 	{
 		//Locate the catch block (if there is one)
-		GVMFunction f = program.getFunction(function);
+		GVMFunction f = program.getFunction(functionPointer);
 		int catchBlock = f.getExceptionHandler(bytecode.getPointerPosition());
 		if( catchBlock > -1 )
 		{
