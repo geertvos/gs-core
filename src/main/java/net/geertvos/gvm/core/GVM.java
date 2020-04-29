@@ -490,7 +490,7 @@ public class GVM {
 				for(int i=0; i <wrapper.argumentCount() ; i++)
 					args.add( stack.pop() );
 				try {
-					Value returnVal = wrapper.invoke(args ,heap, program.getStringConstants() );
+					Value returnVal = wrapper.invoke(args ,heap, program);
 					stack.push(returnVal);
 				} catch(Exception e) {
 					handleException(e.getMessage());

@@ -19,10 +19,11 @@ public class NativeMethodAutoWrapper extends NativeMethodWrapper{
 	}
 
 	@Override
-	public Value invoke(List<Value> arguments, Map<Integer, GVMObject> heap, List<String> strings) {
+	public Value invoke(List<Value> arguments, Map<Integer, GVMObject> heap, GVMProgram program) {
 		Collections.reverse(arguments);
-		String classname = getStringArgument(0, arguments, strings, heap);
-		String method = getStringArgument(1, arguments, strings, heap);
+		
+		String classname = getStringArgument(0, arguments, program, heap);
+		String method = getStringArgument(1, arguments, program, heap);
 			try {
 				Class theClass = Class.forName(classname);
 				Object[] wrappedArgs = null;
@@ -34,7 +35,7 @@ public class NativeMethodAutoWrapper extends NativeMethodWrapper{
 					for(int i=2;i<args;i++) {
 						TYPE type = arguments.get(i).getType();
 						if(type == TYPE.STRING) {
-							String val = getStringArgument(i, arguments, strings, heap);
+							String val = getStringArgument(i, arguments, program, heap);
 							wrappedArgs[i-2] = val;
 							wrappedTypes[i-2] = String.class;
 						} else if(type == TYPE.NUMBER) {
@@ -54,10 +55,7 @@ public class NativeMethodAutoWrapper extends NativeMethodWrapper{
 				Object returnValue = m.invoke(null, wrappedArgs );
 				if(returnValue instanceof String) {
 					String strVal = (String)returnValue;
-					if(!strings.contains(returnValue)) {
-						strings.add(strVal);
-					}
-					int index = strings.indexOf(strVal);
+					int index = program.addString(strVal);
 					return new Value(index, TYPE.STRING);
 				}
 				else if(returnValue instanceof Integer) {
@@ -77,10 +75,10 @@ public class NativeMethodAutoWrapper extends NativeMethodWrapper{
 		return new Value(0,  Value.TYPE.UNDEFINED);
 	}
 	
-	public String getStringArgument(int index, List<Value> arguments, List<String> table, Map<Integer, GVMObject> heap) {
+	public String getStringArgument(int index, List<Value> arguments, GVMProgram program, Map<Integer, GVMObject> heap) {
 		Value v = arguments.get(index);
 		if( v.getType() == Value.TYPE.STRING ) {
-			return table.get(v.getValue());
+			return program.getString(v.getValue());
 		}
 		if( v.getType() == Value.TYPE.NUMBER ) {
 			return String.valueOf(v.getValue());

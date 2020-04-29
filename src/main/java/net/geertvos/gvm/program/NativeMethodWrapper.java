@@ -13,7 +13,7 @@ import net.geertvos.gvm.core.Value;
  */
 public abstract class NativeMethodWrapper {
 
-	public abstract Value invoke( List<Value> arguments, Map<Integer,GVMObject> heap,List<String> strings );
+	public abstract Value invoke( List<Value> arguments, Map<Integer,GVMObject> heap, GVMProgram program );
 	
 	public abstract int argumentCount();
 	
