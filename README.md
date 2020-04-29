@@ -1,5 +1,7 @@
-# GVM Virtual Machine
-The GVM is a stack based VM that executes a simple bytecode instruction set. Loosely based on Javascript. 
+# GS Core
+The GS Core project implements the GVM VM and bytecode language. The GVM is an object oriented, functional and stack based VM, loosely based on Javascript. 
+
+A full high level implementatino can be found in this project: https://github.com/geertvos/gs-lang
 
 # Instruction set
 
