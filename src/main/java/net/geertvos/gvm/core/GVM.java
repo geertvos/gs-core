@@ -363,6 +363,24 @@ public class GVM {
 				else handleException("Only numbers can be divided!");
 				break;
 			}
+			case MOD: 
+			{
+				Value arg2 = stack.pop();
+				Value arg1 = stack.pop();
+				if( arg1.getType()==Value.TYPE.NUMBER && arg2.getType()==Value.TYPE.NUMBER)
+				{
+					if( arg2.getValue() == 0 )
+					{
+						handleException("Division by zero");
+						break;
+					} else {
+						Value returnValue = new Value(arg1.getValue()%arg2.getValue(),Value.TYPE.NUMBER);
+						stack.push(returnValue);
+					}
+				}
+				else handleException("Modulus only accepts numbers as arguments!");
+				break;
+			}
 			case AND: 
 			{
 				Value arg2 = stack.pop();
@@ -540,10 +558,10 @@ public class GVM {
 	}
 	
 	//Stack manipulation
-	public static final byte NEW=1; 		//Create an empty object and put reference on the stack
+	public static final byte NEW=1;     //Create an empty object and put reference on the stack
 	public static final byte LDS=2;		//Load value from the stack <pos> and put on top
 	public static final byte DUP=29;	//Duplicate the current top of the stack
-	public static final byte LDF=3;		//Create a reference to function <ID> on the stack
+	//public static final byte LDF=3;		//Create a reference to function <ID> on the stack
 	public static final byte LDC_N=4;	//Push a number constant on the stack
 	public static final byte LDC_S=5;	//Push a string constant on the stack
 	public static final byte LDC_B=6;	//Push a boolean constant on the stack
@@ -560,7 +578,7 @@ public class GVM {
 	public static final byte SUB=15;		//Pop two values and sub them
 	public static final byte MULT=16;	//Pop two values and mult them
 	public static final byte DIV=17;		//Pop two values and div them
-	//public static final byte MOD=17;		//Pop two values and mod them
+	public static final byte MOD=30;		//Pop two values and mod them
 	
 	//Logic
 	public static final byte AND=18;		//Pop two values and AND them
