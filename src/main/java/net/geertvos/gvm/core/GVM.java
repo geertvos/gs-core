@@ -204,7 +204,7 @@ public class GVM {
 					{
 						stack.pop();
 					}
-					//Pop arguments
+					//Pop arguments, TODO: issue.. caller can supply different number of arguments.
 					int paramCount = program.getFunction(function).getParameters().size() ;
 					for( int i=0;i<paramCount;i++) {
 						stack.pop();
@@ -560,6 +560,7 @@ public class GVM {
 	public static final byte SUB=15;		//Pop two values and sub them
 	public static final byte MULT=16;	//Pop two values and mult them
 	public static final byte DIV=17;		//Pop two values and div them
+	//public static final byte MOD=17;		//Pop two values and mod them
 	
 	//Logic
 	public static final byte AND=18;		//Pop two values and AND them
