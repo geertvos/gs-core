@@ -211,7 +211,7 @@ public class GVM {
 					{
 						stack.pop();
 					}
-					//Pop arguments, TODO: issue.. caller can supply different number of arguments.
+					//Pop arguments, TODO: issue.. caller can supply different number of arguments. We need to support variable arguments...
 					int paramCount = program.getFunction(functionPointer).getParameters().size() ;
 					for( int i=0;i<paramCount;i++) {
 						stack.pop();
@@ -560,8 +560,14 @@ public class GVM {
 	private void handleException( String message )
 	{
 		int index = program.addString(message);
-		Value exception = new Value(index,Value.TYPE.STRING);
-		handleExceptionObject(exception);
+		Value exceptionMessage = new Value(index,Value.TYPE.STRING);
+		
+		GVMObject exceptionObject = new GVMPlainObject();
+		exceptionObject.setValue("message", exceptionMessage);
+		exceptionObject.setValue("line", new Value(debugLineNumber, Value.TYPE.NUMBER));
+		int id = heap.size()+1;
+		heap.put(id, exceptionObject);
+		handleExceptionObject(new Value(id,Value.TYPE.OBJECT));
 	}
 	
 	/**
@@ -571,7 +577,6 @@ public class GVM {
 	 */
 	private void handleExceptionObject( Value exception )
 	{
-		System.err.println("Exception at line: "+debugLineNumber);
 		//Locate the catch block (if there is one)
 		GVMFunction f = program.getFunction(functionPointer);
 		int catchBlock = f.getExceptionHandler(bytecode.getPointerPosition());
