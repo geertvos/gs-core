@@ -521,6 +521,10 @@ public class GVM {
 				this.debugLineNumber = line;
 				break;
 			}
+			case BREAKPOINT: {
+				System.out.println("Breakpoint current line: "+debugLineNumber);
+				break;
+			}
 			default:
 				break;
 			}
@@ -644,5 +648,6 @@ public class GVM {
 	public static final byte NATIVE=28;
 
 	public static final byte DEBUG=32;      //Tell the VM about the code that is being executed. For deubgging purposes.
+	public static final byte BREAKPOINT=33; //Tell the VM to pause and allow for inspection of heap and stack.
 
 }
