@@ -40,7 +40,7 @@ public class GVM {
 	private int functionPointer;
 
 	//The current line number
-//	private int debugLineNumber = -1;
+	private int debugLineNumber = -1;
 
 	//The garbage collector, by default a simple depth first search trough the object references on the stack
 	private GarbageCollector gc = new MarkAndSweepGarbageCollector();
@@ -63,7 +63,7 @@ public class GVM {
 	{
 		framepointer = 0;
 		functionPointer = 0;
-//		debugLineNumber = -1;
+		debugLineNumber = -1;
 		stack.clear();
 		heap.clear();
 		
@@ -181,7 +181,7 @@ public class GVM {
 					stack.push( new Value(bytecode.getPointerPosition(), Value.TYPE.NUMBER, "Program counter") );
 					stack.push( new Value(framepointer, Value.TYPE.NUMBER, "Frame pointer") );
 					stack.push( new Value(callerFunction, Value.TYPE.NUMBER, "Calling function") );
-//					stack.push( new Value(debugLineNumber, Value.TYPE.NUMBER, "Current linenumber") );
+					stack.push( new Value(debugLineNumber, Value.TYPE.NUMBER, "Current linenumber") );
 					
 					
 					//Push this and arguments on the stack
@@ -217,7 +217,7 @@ public class GVM {
 						stack.pop();
 					}
 					stack.pop(); // this
-//					debugLineNumber = stack.pop().getValue(); //Set the original line number
+					debugLineNumber = stack.pop().getValue(); //Set the original line number
 					functionPointer = stack.pop().getValue(); //Function pointer
 					framepointer = stack.pop().getValue(); //FP
 					int pc = stack.pop().getValue(); //PC
@@ -514,10 +514,12 @@ public class GVM {
 				}
 				String message = program.getString(arg.getValue());
 				handleException(message);
+				break;
 			}
 			case DEBUG: {
 				int line = bytecode.readInt();
-//				this.debugLineNumber = line;
+				this.debugLineNumber = line;
+				break;
 			}
 			default:
 				break;
@@ -541,7 +543,7 @@ public class GVM {
 		while( stack.size() > framepointer )
 			stack.pop();
 		
-//		debugLineNumber = stack.pop().getValue(); //Debug line number
+		debugLineNumber = stack.pop().getValue(); //Debug line number
 		functionPointer = stack.pop().getValue(); //Function pointer
 		framepointer = stack.pop().getValue(); //FP
 		int pc = stack.pop().getValue(); //PC
@@ -569,7 +571,7 @@ public class GVM {
 	 */
 	private void handleExceptionObject( Value exception )
 	{
-//		System.err.println("Exception at line: "+debugLineNumber);
+		System.err.println("Exception at line: "+debugLineNumber);
 		//Locate the catch block (if there is one)
 		GVMFunction f = program.getFunction(functionPointer);
 		int catchBlock = f.getExceptionHandler(bytecode.getPointerPosition());
