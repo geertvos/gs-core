@@ -597,11 +597,14 @@ public class GVM {
 				//We peeled one off, recursively handle the exception.
 				handleExceptionObject(exception);
 			} else {
-				String message = "unknown";
-				if(exception.getType() == TYPE.STRING) {
-					message = program.getString(exception.getValue());
+				String message = "Unhandled unknown exception";
+				if(exception.getType() == TYPE.OBJECT) {
+					GVMObject exceptionObj = heap.get(exception.getValue());
+					String exceptionMsg = program.getString(exceptionObj.getValue("message").getValue());
+					int exceptionLine = exceptionObj.getValue("line").getValue();
+					message = String.format("Unhandled exception '%s' at line %d", exceptionMsg, exceptionLine); 
 				}
-				System.err.println("Unhandled exception: "+message);
+				System.err.println(message);
 				System.exit(1);
 			}
 		}

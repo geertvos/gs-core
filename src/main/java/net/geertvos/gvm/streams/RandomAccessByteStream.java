@@ -19,7 +19,7 @@ public class RandomAccessByteStream {
 	 * Construct a new ByteStreamBuffer with blocksize 512 and 1 initial block
 	 */
 	public RandomAccessByteStream() {
-		this(2048);
+		this(4000);
 	}
 
 	/**
