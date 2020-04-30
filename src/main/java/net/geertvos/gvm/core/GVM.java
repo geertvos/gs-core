@@ -39,6 +39,9 @@ public class GVM {
 	//The current identifier of the function
 	private int functionPointer;
 
+	//The current line number
+//	private int debugLineNumber = -1;
+
 	//The garbage collector, by default a simple depth first search trough the object references on the stack
 	private GarbageCollector gc = new MarkAndSweepGarbageCollector();
 	
@@ -60,6 +63,7 @@ public class GVM {
 	{
 		framepointer = 0;
 		functionPointer = 0;
+//		debugLineNumber = -1;
 		stack.clear();
 		heap.clear();
 		
@@ -173,9 +177,11 @@ public class GVM {
 					
 					Value thisval = stack.pop();
 					//Push state on the stack
+					//TODO: Implement stack frames and push on a different stack. Ideal to record debug info.
 					stack.push( new Value(bytecode.getPointerPosition(), Value.TYPE.NUMBER, "Program counter") );
 					stack.push( new Value(framepointer, Value.TYPE.NUMBER, "Frame pointer") );
 					stack.push( new Value(callerFunction, Value.TYPE.NUMBER, "Calling function") );
+//					stack.push( new Value(debugLineNumber, Value.TYPE.NUMBER, "Current linenumber") );
 					
 					
 					//Push this and arguments on the stack
@@ -211,6 +217,7 @@ public class GVM {
 						stack.pop();
 					}
 					stack.pop(); // this
+//					debugLineNumber = stack.pop().getValue(); //Set the original line number
 					functionPointer = stack.pop().getValue(); //Function pointer
 					framepointer = stack.pop().getValue(); //FP
 					int pc = stack.pop().getValue(); //PC
@@ -508,6 +515,10 @@ public class GVM {
 				String message = program.getString(arg.getValue());
 				handleException(message);
 			}
+			case DEBUG: {
+				int line = bytecode.readInt();
+//				this.debugLineNumber = line;
+			}
 			default:
 				break;
 			}
@@ -523,13 +534,14 @@ public class GVM {
 	private boolean peel()
 	{
 		//Do not peel the values pushed by the VM itself
-		if( framepointer < 4 )
+		if( framepointer < 5 )
 			return false;
 		
 		//Remove local variables and parameters
 		while( stack.size() > framepointer )
 			stack.pop();
 		
+//		debugLineNumber = stack.pop().getValue(); //Debug line number
 		functionPointer = stack.pop().getValue(); //Function pointer
 		framepointer = stack.pop().getValue(); //FP
 		int pc = stack.pop().getValue(); //PC
@@ -557,6 +569,7 @@ public class GVM {
 	 */
 	private void handleExceptionObject( Value exception )
 	{
+//		System.err.println("Exception at line: "+debugLineNumber);
 		//Locate the catch block (if there is one)
 		GVMFunction f = program.getFunction(functionPointer);
 		int catchBlock = f.getExceptionHandler(bytecode.getPointerPosition());
@@ -622,5 +635,7 @@ public class GVM {
 	//Stack manipulation
 	public static final byte POP=27;		//Just pop a value from the stack
 	public static final byte NATIVE=28;
+
+	public static final byte DEBUG=32;      //Tell the VM about the code that is being executed. For deubgging purposes.
 
 }
