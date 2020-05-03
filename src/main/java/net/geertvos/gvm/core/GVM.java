@@ -48,6 +48,9 @@ public class GVM {
 	//The heap contains the objects
 	private final Map<Integer,GVMObject> heap = new HashMap<Integer,GVMObject>();
 
+	//Stack frames
+	private final Stack<StackFrame> callStack = new Stack<>();
+	
 	//Bytecode of the current function
 	private RandomAccessByteStream bytecode;
 	
@@ -115,6 +118,17 @@ public class GVM {
 				}
 			}
 			break;
+			case LDG:
+			{
+				int pos = bytecode.readInt();
+				if(pos >= 0) {
+					int arg = pos;
+					stack.push(stack.get(arg));
+				} else {
+					stack.push(stack.get(stack.size()+pos-1));
+				}
+			}
+			break;
 			case DUP:
 			{
 				stack.push(stack.get(stack.size()-1));
@@ -175,18 +189,10 @@ public class GVM {
 					for( int i=paramCount-1; i >= 0; i--)
 						params[i] = stack.pop();
 					
-					Value thisval = stack.pop();
+					Value thisval = stack.peek();;
 					//Push state on the stack
-					//TODO: Implement stack frames and push on a different stack. Ideal to record debug info.
-					stack.push( new Value(bytecode.getPointerPosition(), Value.TYPE.NUMBER, "Program counter") );
-					stack.push( new Value(framepointer, Value.TYPE.NUMBER, "Frame pointer") );
-					stack.push( new Value(callerFunction, Value.TYPE.NUMBER, "Calling function") );
-					stack.push( new Value(debugLineNumber, Value.TYPE.NUMBER, "Current linenumber") );
-					
-					
-					//Push this and arguments on the stack
-					framepointer = stack.size();
-					stack.push(thisval);
+					callStack.push(new StackFrame(bytecode.getPointerPosition(), framepointer, callerFunction, debugLineNumber, thisval));
+					framepointer = stack.size()-1;
 					for( int i=0;i<paramCount;i++)
 					{
 						stack.push(params[i]);
@@ -217,10 +223,11 @@ public class GVM {
 						stack.pop();
 					}
 					stack.pop(); // this
-					debugLineNumber = stack.pop().getValue(); //Set the original line number
-					functionPointer = stack.pop().getValue(); //Function pointer
-					framepointer = stack.pop().getValue(); //FP
-					int pc = stack.pop().getValue(); //PC
+					StackFrame frame = callStack.pop();
+					debugLineNumber = frame.getLineNumber(); //Set the original line number
+					functionPointer = frame.getCallingFunction(); //Function pointer
+					framepointer = frame.getFramePointer(); //FP
+					int pc = frame.getProgramCounter(); //PC
 					bytecode = program.getFunction(functionPointer).getBytecode();
 					bytecode.seek(pc);
 					stack.push(v);
@@ -239,6 +246,7 @@ public class GVM {
 				{
 					Value reference = stack.pop();	//pop value which must be a reference to object
 					String variableName = bytecode.readString();
+					//TODO: Move these to the language implementation 
 					if(variableName.equals("ref")) {
 						int ref = reference.getValue();
 						stack.push(new Value(ref, TYPE.NUMBER));
@@ -264,9 +272,28 @@ public class GVM {
 						break;
 					}
 					GVMObject vo = heap.get(reference.getValue());
-					stack.push(vo.getValue(variableName) );
+					stack.push(vo.getValue(variableName));
 				}
 				break;
+			case GETDYNAMIC:
+			{
+				String variableName = bytecode.readString();
+				Value theValue = null;
+				for(StackFrame frame : callStack) {
+					Value scope = frame.getScope();
+					GVMObject object = heap.get(scope.getValue());
+					if(object.getValue(variableName).getType() != TYPE.UNDEFINED) {
+						theValue = object.getValue(variableName);
+						break;
+					}
+				}
+				if(theValue == null) {
+					GVMObject vo = heap.get(callStack.peek().getScope().getValue());
+					theValue = vo.getValue(variableName);
+				}
+				stack.push(theValue);
+				break;
+			}
 			case HALT:
 				{
 					executing = false;
@@ -540,17 +567,18 @@ public class GVM {
 	private boolean peel()
 	{
 		//Do not peel the values pushed by the VM itself
-		if( framepointer < 5 )
+		if( callStack.size() == 1 )
 			return false;
 		
 		//Remove local variables and parameters
 		while( stack.size() > framepointer )
 			stack.pop();
 		
-		debugLineNumber = stack.pop().getValue(); //Debug line number
-		functionPointer = stack.pop().getValue(); //Function pointer
-		framepointer = stack.pop().getValue(); //FP
-		int pc = stack.pop().getValue(); //PC
+		StackFrame frame = callStack.pop();
+		debugLineNumber = frame.getLineNumber(); //Debug line number
+		functionPointer = frame.getCallingFunction(); //Function pointer
+		framepointer = frame.getFramePointer(); //FP
+		int pc = frame.getProgramCounter(); //PC
 		bytecode = program.getFunction(functionPointer).getBytecode();
 		bytecode.seek(pc);
 		return true;
@@ -613,6 +641,7 @@ public class GVM {
 	//Stack manipulation
 	public static final byte NEW=1;     //Create an empty object and put reference on the stack
 	public static final byte LDS=2;		//Load value from the stack <pos> and put on top
+	public static final byte LDG=34;	//Load value from the stack <pos> and put on top, without using the framepointer.
 	public static final byte DUP=29;	//Duplicate the current top of the stack
 	//public static final byte LDF=3;		//Create a reference to function <ID> on the stack
 	public static final byte LDC_N=4;	//Push a number constant on the stack
@@ -624,6 +653,7 @@ public class GVM {
 	public static final byte RETURN=9;	//POP PC from the stack and set PC to old PC, leave return values on the stack
 	public static final byte PUT=10;		//Pop variable to set from the stack, then pop the new value from the stack. Copies the values from the latter to the first.
 	public static final byte GET=11;		//Pop reference from the stack, load value <ID> from reference and push on stack
+	public static final byte GETDYNAMIC = 35; //Get a field from the current scope. If it does not exists, check parent scope.. etc.. until nothing found. Then a new field is created in the current scope.
 	public static final byte HALT=12;	//End machine
 	
 	//Arithmetic
