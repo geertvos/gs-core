@@ -20,6 +20,7 @@ A full high level implementation can be found in this project: https://github.co
 | RETURN | | Return from a function. |
 | PUT |  | Pop variable to set from the stack, then pop the new value from the stack. Copies the values from the latter to the first. |
 | GET | [string] | Pop reference from the stack, load value named ARG from reference and push on stack. |
+| GETDYNAMIC | [string] | Load value named ARG from current scope. If arg does not exist, check calling scope. IF found push  on stack. If not found at all, create new undefined in current scope. |
 | HALT | | Stop the VM. |
 | ADD | | Pop two values from the stack and push the result of the addition |
 | SUB | | Pop two values from the stack and push the result of the substraction |
