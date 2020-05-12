@@ -56,6 +56,8 @@ public class GVM {
 	
 	//Current program
 	private GVMProgram program;
+
+	private int location;
 	
 	public GVM( GVMProgram program )
 	{
@@ -191,7 +193,7 @@ public class GVM {
 					
 					Value thisval = stack.peek();;
 					//Push state on the stack
-					callStack.push(new StackFrame(bytecode.getPointerPosition(), framepointer, callerFunction, debugLineNumber, thisval));
+					callStack.push(new StackFrame(bytecode.getPointerPosition(), framepointer, callerFunction, debugLineNumber, location, thisval));
 					framepointer = stack.size()-1;
 					for( int i=0;i<paramCount;i++)
 					{
@@ -227,6 +229,7 @@ public class GVM {
 					debugLineNumber = frame.getLineNumber(); //Set the original line number
 					functionPointer = frame.getCallingFunction(); //Function pointer
 					framepointer = frame.getFramePointer(); //FP
+					location = frame.getLocation();
 					int pc = frame.getProgramCounter(); //PC
 					bytecode = program.getFunction(functionPointer).getBytecode();
 					bytecode.seek(pc);
@@ -544,8 +547,10 @@ public class GVM {
 				break;
 			}
 			case DEBUG: {
+				//TODO: Allow language developer to inject arbitrary debug info that will be mapped to an object.
 				int line = bytecode.readInt();
 				this.debugLineNumber = line;
+				this.location = bytecode.readInt();
 				break;
 			}
 			case BREAKPOINT: {
@@ -578,6 +583,7 @@ public class GVM {
 		debugLineNumber = frame.getLineNumber(); //Debug line number
 		functionPointer = frame.getCallingFunction(); //Function pointer
 		framepointer = frame.getFramePointer(); //FP
+		location = frame.getLocation();
 		int pc = frame.getProgramCounter(); //PC
 		bytecode = program.getFunction(functionPointer).getBytecode();
 		bytecode.seek(pc);
@@ -597,6 +603,7 @@ public class GVM {
 		GVMObject exceptionObject = new GVMPlainObject();
 		exceptionObject.setValue("message", exceptionMessage);
 		exceptionObject.setValue("line", new Value(debugLineNumber, Value.TYPE.NUMBER));
+		exceptionObject.setValue("location", new Value(location, Value.TYPE.STRING));
 		int id = heap.size()+1;
 		heap.put(id, exceptionObject);
 		handleExceptionObject(new Value(id,Value.TYPE.OBJECT));

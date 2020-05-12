@@ -1,22 +1,22 @@
 package net.geertvos.gvm.core;
 
-import net.geertvos.gvm.program.GVMFunction;
-
 public class StackFrame {
 
 	private int programCounter;
 	private int framePointer;
 	private int callingFunction;
-	private int lineNumber;
+	private int lineNumber;  //TODO: Replace with DebugInfo object
+	private int location;  //TODO: Replace with DebugInfo object
 	private Value scope;
 
-	public StackFrame(int programCounter, int framePointer, int callingFunction, int lineNumber, Value scope) {
+	public StackFrame(int programCounter, int framePointer, int callingFunction, int lineNumber, int location, Value scope) {
 		super();
 		this.programCounter = programCounter;
 		this.framePointer = framePointer;
 		this.callingFunction = callingFunction;
 		this.lineNumber = lineNumber;
 		this.scope = scope;
+		this.location = location;
 	}
 
 	public int getProgramCounter() {
@@ -37,6 +37,14 @@ public class StackFrame {
 
 	public int getCallingFunction() {
 		return callingFunction;
+	}
+
+	public int getLocation() {
+		return location;
+	}
+
+	public void setModuleName(int moduleName) {
+		this.location = moduleName;
 	}
 
 	public void setCallingFunction(int callingFunction) {
