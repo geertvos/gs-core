@@ -1,10 +1,10 @@
-package net.geertvos.gvm.program;
+package net.geertvos.gvm.bridge;
 
 import java.util.List;
-import java.util.Map;
 
-import net.geertvos.gvm.core.GVMObject;
 import net.geertvos.gvm.core.Value;
+import net.geertvos.gvm.program.GVMProgram;
+import net.geertvos.gvm.program.GVMHeap;
 
 /**
  * Wrapper to allow the GVM to execute a 'native' method
@@ -13,7 +13,7 @@ import net.geertvos.gvm.core.Value;
  */
 public abstract class NativeMethodWrapper {
 
-	public abstract Value invoke( List<Value> arguments, Map<Integer,GVMObject> heap, GVMProgram program );
+	public abstract Value invoke( List<Value> arguments, GVMHeap heap, GVMProgram program );
 	
 	public abstract int argumentCount();
 	
