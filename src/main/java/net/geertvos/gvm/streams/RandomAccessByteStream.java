@@ -57,6 +57,15 @@ public class RandomAccessByteStream {
 			buffers.add(new byte[blocksize]);
 	}
 
+	public RandomAccessByteStream clone() {
+		RandomAccessByteStream stream = new RandomAccessByteStream(this.blocksize, 1);
+		stream.buffers.clear();
+		for(byte[] buffer : buffers) {
+			stream.buffers.add(buffer);
+		}
+		return stream;
+	}
+	
 	/**
 	 * Write a byte and move the pointer to the next position
 	 * 

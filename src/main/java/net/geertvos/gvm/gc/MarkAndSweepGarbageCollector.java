@@ -1,38 +1,41 @@
 package net.geertvos.gvm.gc;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Stack;
 
 import net.geertvos.gvm.core.GVMObject;
+import net.geertvos.gvm.core.GVMThread;
 import net.geertvos.gvm.core.Value;
+import net.geertvos.gvm.program.GVMHeap;
 
 public class MarkAndSweepGarbageCollector implements GarbageCollector {
 
-	private Map<Integer,GVMObject> heap;
+	private GVMHeap heap;
 	private int currentTreshHold = 20;
 	
 	@Override
-	public void collect(Map<Integer, GVMObject> heap, Stack<Value> stack) {
+	public void collect(GVMHeap heap, List<GVMThread> threads) {
 		if( heap.size() < currentTreshHold )
 			return;
 		
 		//Build list of live objects
 		this.heap = heap;
 		Set<GVMObject> alive = new HashSet<GVMObject>();
-		for( Value v : stack )
-		{
-			if( v.getType().equals(Value.TYPE.OBJECT))
+		for(GVMThread thread : threads) {
+			for( Value v : thread.getStack() )
 			{
-				GVMObject child = heap.get(v.getValue());
-				search( child , alive);
+				if( v.getType().equals(Value.TYPE.OBJECT))
+				{
+					GVMObject child = heap.getObject(v.getValue());
+					search( child , alive);
+				}
 			}
 		}
-		heap.values().retainAll(alive);
+		heap.retain(alive);
 		while( heap.size() > currentTreshHold )
 			currentTreshHold = currentTreshHold*2;
-		System.out.println("GC executed.");
 	}
 	
 	private void search( GVMObject o , Set<GVMObject> alive )
@@ -44,7 +47,7 @@ public class MarkAndSweepGarbageCollector implements GarbageCollector {
 			{
 				if( v.getType().equals(Value.TYPE.OBJECT))
 				{
-					GVMObject child = heap.get(v.getValue());
+					GVMObject child = heap.getObject(v.getValue());
 					search( child , alive);
 				}
 			}

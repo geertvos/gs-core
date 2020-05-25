@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
+import net.geertvos.gvm.bridge.NativeMethodWrapper;
+
 /**
  * Represents a program that can be executed by the GVM. A program contains
  * functions and string constants.
@@ -69,8 +71,9 @@ public class GVMProgram {
 		return functions.add(arg0);
 	}
 
-	public boolean add(NativeMethodWrapper arg0) {
-		return nativeWrappers.add(arg0);
+	public int add(NativeMethodWrapper method) {
+		nativeWrappers.add(method);
+		return nativeWrappers.indexOf(method);
 	}
 
 	public List<String> getStringConstants() {

@@ -2,10 +2,12 @@ package net.geertvos.gvm.core;
 
 import java.util.Map;
 import java.util.Stack;
+import java.util.concurrent.CountDownLatch;
 
 import net.geertvos.gvm.core.Value.TYPE;
 import net.geertvos.gvm.program.GVMFunction;
 import net.geertvos.gvm.program.GVMProgram;
+import net.geertvos.gvm.program.GVMHeap;
 import net.geertvos.gvm.streams.RandomAccessByteStream;
 
 public class GVMThread {
@@ -33,9 +35,11 @@ public class GVMThread {
 
 	private int location;
 
-	private Map<Integer, GVMObject> heap;
+	private final GVMHeap heap;
 
-	public GVMThread(GVMProgram program, Map<Integer, GVMObject> heap) {
+	private CountDownLatch finishedLatch = new CountDownLatch(1); 
+	
+	public GVMThread(GVMProgram program, GVMHeap heap) {
 		framepointer = 0;
 		functionPointer = 0;
 		debugLineNumber = -1;
@@ -115,9 +119,21 @@ public class GVMThread {
 		setFramepointer(frame.getFramePointer());
 		setLocation(frame.getLocation());
 		int pc = frame.getProgramCounter(); //PC
-		setBytecode(program.getFunction(getFunctionPointer()).getBytecode());
+		setBytecode(program.getFunction(getFunctionPointer()).getBytecode().clone());
 		getBytecode().seek(pc);
 		return true;
+	}
+	
+	void markThreadFinished() {
+		finishedLatch.countDown();
+	}
+	
+	void awaitFinished() {
+		try {
+			finishedLatch.await();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	void handleException(String message)
@@ -129,8 +145,7 @@ public class GVMThread {
 		exceptionObject.setValue("message", exceptionMessage);
 		exceptionObject.setValue("line", new Value(getDebugLineNumber(), Value.TYPE.NUMBER));
 		exceptionObject.setValue("location", new Value(getLocation(), Value.TYPE.STRING));
-		int id = heap.size()+1;
-		heap.put(id, exceptionObject);
+		int id = heap.addObject(exceptionObject);
 		handleExceptionObject(new Value(id,Value.TYPE.OBJECT));
 	}
 	
@@ -159,7 +174,7 @@ public class GVMThread {
 			} else {
 				String message = "Unhandled unknown exception";
 				if(exception.getType() == TYPE.OBJECT) {
-					GVMObject exceptionObj = heap.get(exception.getValue());
+					GVMObject exceptionObj = heap.getObject(exception.getValue());
 					String exceptionMsg = program.getString(exceptionObj.getValue("message").getValue());
 					int exceptionLine = exceptionObj.getValue("line").getValue();
 					message = String.format("Unhandled exception '%s' at line %d", exceptionMsg, exceptionLine); 
