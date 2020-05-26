@@ -31,6 +31,11 @@ public class GVMHeap {
 	}
 	
 	public void retain(Collection<GVMObject> objects) {
+		for(GVMObject object : heap.values()) {
+			if(!objects.contains(object)) {
+				object.preDestroy();
+			}
+		}
 		this.heap.values().retainAll(objects);
 	}
 }

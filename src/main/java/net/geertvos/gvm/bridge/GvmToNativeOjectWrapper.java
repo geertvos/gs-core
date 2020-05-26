@@ -44,7 +44,6 @@ public class GvmToNativeOjectWrapper implements InvocationHandler {
 		for(Parameter p : method.getParameters()) {
 			paramNames.add(p.getName());
 		}
-		//TODO: preload parameters
 		//Generate a function to call the native method
 		code.add(GVM.GET);
 		code.writeString(method.getName());
@@ -79,6 +78,9 @@ public class GvmToNativeOjectWrapper implements InvocationHandler {
 		while(running) {
 			running = gvm.fetchAndDecode(thread);
 		}
-        return null;
+		context.getProgram().deleteFunction(functionPointer);
+        Value returnVal = thread.getStack().pop(); //TODO implement return values
+        return converter.convertFromGVM(returnVal);
+        
     }
 }

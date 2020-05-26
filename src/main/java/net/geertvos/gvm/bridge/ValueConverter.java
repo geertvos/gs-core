@@ -17,7 +17,9 @@ public class ValueConverter {
 	
 	public Object convertFromGVM(Value value) {
 		TYPE type = value.getType();
-		if(type == TYPE.STRING) {
+		if(type == TYPE.UNDEFINED) {
+			return null;
+		} else if(type == TYPE.STRING) {
 			return context.getProgram().getString(value.getValue());
 		} else if(type == TYPE.NUMBER) {
 			return value.getValue();
@@ -37,7 +39,9 @@ public class ValueConverter {
 
 	public Object convertFromGVM(Value value, Class convertTo) {
 		TYPE type = value.getType();
-		if(type == TYPE.STRING && convertTo == String.class) {
+		if(type == TYPE.UNDEFINED) {
+			return null;
+		} else if(type == TYPE.STRING && convertTo == String.class) {
 			return context.getProgram().getString(value.getValue());
 		} else if(type == TYPE.NUMBER && convertTo == Integer.class || convertTo == int.class) {
 			return value.getValue();

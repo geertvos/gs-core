@@ -2,6 +2,7 @@ package net.geertvos.gvm.debug;
 
 
 import java.io.PrintStream;
+import java.util.Map.Entry;
 
 import net.geertvos.gvm.core.GVM;
 import net.geertvos.gvm.program.GVMFunction;
@@ -23,18 +24,16 @@ public class DebugInfo {
 	
 	public static void displayProgram( GVMProgram p )
 	{
-		int fnumber = 0;
-		for( GVMFunction f : p.getFunctions() )
+		for( Entry<Integer,GVMFunction> entry : p.getFunctions().entrySet() )
 		{
-			System.out.println("Function: "+fnumber);
+			System.out.println("Function: "+entry.getKey());
 			System.out.println("Parameters:");
-			System.out.println(f.getParameters());
+			System.out.println(entry.getValue().getParameters());
 			System.out.println("Locals:");
-			System.out.println(f.getLocals());
+			System.out.println(entry.getValue().getLocals());
 			System.out.println("Bytecode:");
-			displayFunction(System.out, f.getBytecode());
+			displayFunction(System.out, entry.getValue().getBytecode());
 			System.out.println();
-			fnumber++;
 		}		
 	}
 

@@ -11,4 +11,8 @@ public interface GVMObject {
 
 	Collection<Value> getValues();
 
+	/**
+	 * The GC will call this method before it will be removed from the heap.
+	 */
+	void preDestroy();
 }

@@ -1,8 +1,11 @@
 package net.geertvos.gvm.program;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.geertvos.gvm.bridge.NativeMethodWrapper;
 
@@ -15,17 +18,14 @@ import net.geertvos.gvm.bridge.NativeMethodWrapper;
  */
 public class GVMProgram {
 
-	private final List<GVMFunction> functions = new ArrayList<GVMFunction>();
+	private final Map<Integer,GVMFunction> functions = new HashMap<Integer,GVMFunction>();
 	private List<String> stringConstants = new ArrayList<String>();
 	private List<NativeMethodWrapper> nativeWrappers = new ArrayList<NativeMethodWrapper>();
 	private final String name;
-
+	private AtomicInteger functionCounter = new AtomicInteger();
+	
 	public GVMProgram(String name) {
 		this.name = name;
-	}
-
-	public void addFunction(GVMFunction f, int index) {
-		functions.add(index, f);
 	}
 
 	public void addString(String s, int index) {
@@ -67,10 +67,6 @@ public class GVMProgram {
 		return nativeWrappers;
 	}
 
-	public boolean add(GVMFunction arg0) {
-		return functions.add(arg0);
-	}
-
 	public int add(NativeMethodWrapper method) {
 		nativeWrappers.add(method);
 		return nativeWrappers.indexOf(method);
@@ -81,19 +77,20 @@ public class GVMProgram {
 	}
 
 	public int addFunction(GVMFunction function) {
-		functions.add(function);
-		return functions.indexOf(function);
+		int id = functionCounter.getAndIncrement();
+		functions.put(id, function);
+		return id;
 	}
 
-	public int getFunctionIndex(GVMFunction function) {
-		return functions.indexOf(function);
+	public void deleteFunction(int id) {
+		functions.remove(id);
 	}
 
 	public void setNatives(List<NativeMethodWrapper> natives) {
 		this.nativeWrappers = natives;
 	}
 
-	public List<GVMFunction> getFunctions() {
+	public Map<Integer,GVMFunction> getFunctions() {
 		return functions;
 	}
 

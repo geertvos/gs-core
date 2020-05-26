@@ -55,5 +55,9 @@ public class GVMPlainObject implements GVMObject {
 	public String toString() {
 		return "GVMPlainObject [data=" + data + "]";
 	}
+
+	@Override
+	public void preDestroy() {
+	}
 	
 }

@@ -22,9 +22,12 @@ public class NativeObjectWrapper implements GVMObject {
 	private Object object;
 	private Map<String,Value> methods = new HashMap<String, Value>();
 	private ValueConverter converter;
+	private List<Integer> generatedFunctions = new LinkedList<Integer>();
+	private final GVMContext context;
 	
 	public NativeObjectWrapper(Object object,GVMContext context) {
 		this.object = object;
+		this.context = context;
 		this.converter = new ValueConverter(context);
 		for(Method m : object.getClass().getMethods()) {
 			//Generate wrapper function
@@ -46,7 +49,10 @@ public class NativeObjectWrapper implements GVMObject {
 			code.add(GVM.RETURN);
 			GVMFunction function = new GVMFunction(code, paramNames);
 			int index = context.getProgram().addFunction(function);
+			generatedFunctions.add(index);
+			generatedFunctions.add(nativeFunction);
 			methods.put(m.getName(), new Value(index, TYPE.FUNCTION, "Generated function to call "+m.getName()+" on "+object.getClass().getName()));
+			//TODO: invent a mechanism to GC unused functions
 		}
 	}
 
@@ -80,6 +86,15 @@ public class NativeObjectWrapper implements GVMObject {
 	@Override
 	public Collection<Value> getValues() {
 		return methods.values();
+	}
+
+
+	@Override
+	public void preDestroy() {
+		for(Integer functionId : generatedFunctions) {
+			this.context.getProgram().deleteFunction(functionId);
+		}
+		
 	}
 	
 }
