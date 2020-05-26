@@ -4,6 +4,7 @@ import java.util.List;
 
 import net.geertvos.gvm.core.Value;
 import net.geertvos.gvm.program.GVMProgram;
+import net.geertvos.gvm.program.GVMContext;
 import net.geertvos.gvm.program.GVMHeap;
 
 /**
@@ -13,7 +14,7 @@ import net.geertvos.gvm.program.GVMHeap;
  */
 public abstract class NativeMethodWrapper {
 
-	public abstract Value invoke( List<Value> arguments, GVMHeap heap, GVMProgram program );
+	public abstract Value invoke( List<Value> arguments, GVMContext context );
 	
 	public abstract int argumentCount();
 	

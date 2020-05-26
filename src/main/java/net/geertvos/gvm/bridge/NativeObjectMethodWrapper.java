@@ -6,9 +6,11 @@ import java.util.List;
 import java.util.Map;
 
 import net.geertvos.gvm.core.GVMObject;
+import net.geertvos.gvm.core.GVMPlainObject;
 import net.geertvos.gvm.core.Value;
 import net.geertvos.gvm.core.Value.TYPE;
 import net.geertvos.gvm.program.GVMProgram;
+import net.geertvos.gvm.program.GVMContext;
 import net.geertvos.gvm.program.GVMHeap;
 
 public class NativeObjectMethodWrapper extends NativeMethodWrapper {
@@ -24,8 +26,8 @@ public class NativeObjectMethodWrapper extends NativeMethodWrapper {
 	}
 
 	@Override
-	public Value invoke(List<Value> arguments, GVMHeap heap, GVMProgram program) {
-		ValueConverter converter = new ValueConverter(heap, program);
+	public Value invoke(List<Value> arguments, GVMContext context) {
+		ValueConverter converter = new ValueConverter(context);
 		try {
 			Object[] wrappedArgs = new Object[arguments.size()];
 			Class[] wrappedTypes = new Class[arguments.size()];
@@ -49,6 +51,11 @@ public class NativeObjectMethodWrapper extends NativeMethodWrapper {
 				theMethod = parent.getClass().getMethod(methodName, wrappedTypes);
 			}
 			theMethod.setAccessible(true);
+			for(int p=0;p<wrappedTypes.length;p++) {
+				if(wrappedTypes[p] == GVMPlainObject.class ) {
+					wrappedArgs[p] = converter.convertFromGVM(arguments.get(p), theMethod.getParameterTypes()[p]);
+				}
+			}
 			Object returnValue = theMethod.invoke(parent, wrappedArgs);
 			return converter.convertToGVM(returnValue);
 

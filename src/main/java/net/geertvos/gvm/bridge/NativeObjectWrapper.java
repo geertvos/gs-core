@@ -13,9 +13,8 @@ import net.geertvos.gvm.core.GVM;
 import net.geertvos.gvm.core.GVMObject;
 import net.geertvos.gvm.core.Value;
 import net.geertvos.gvm.core.Value.TYPE;
+import net.geertvos.gvm.program.GVMContext;
 import net.geertvos.gvm.program.GVMFunction;
-import net.geertvos.gvm.program.GVMProgram;
-import net.geertvos.gvm.program.GVMHeap;
 import net.geertvos.gvm.streams.RandomAccessByteStream;
 
 public class NativeObjectWrapper implements GVMObject {
@@ -24,13 +23,13 @@ public class NativeObjectWrapper implements GVMObject {
 	private Map<String,Value> methods = new HashMap<String, Value>();
 	private ValueConverter converter;
 	
-	public NativeObjectWrapper(Object object, GVMHeap heap, GVMProgram program) {
+	public NativeObjectWrapper(Object object,GVMContext context) {
 		this.object = object;
-		this.converter = new ValueConverter(heap, program);
+		this.converter = new ValueConverter(context);
 		for(Method m : object.getClass().getMethods()) {
 			//Generate wrapper function
 			NativeObjectMethodWrapper wrapperMethod = new NativeObjectMethodWrapper(m.getName(), object, m.getParameterCount());
-			int nativeFunction = program.add(wrapperMethod);
+			int nativeFunction = context.getProgram().add(wrapperMethod);
 			RandomAccessByteStream code = new RandomAccessByteStream();
 			List<String> paramNames = new LinkedList<String>();
 			int i=1;
@@ -46,7 +45,7 @@ public class NativeObjectWrapper implements GVMObject {
 			code.add(GVM.NATIVE);
 			code.add(GVM.RETURN);
 			GVMFunction function = new GVMFunction(code, paramNames);
-			int index = program.addFunction(function);
+			int index = context.getProgram().addFunction(function);
 			methods.put(m.getName(), new Value(index, TYPE.FUNCTION, "Generated function to call "+m.getName()+" on "+object.getClass().getName()));
 		}
 	}

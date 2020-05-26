@@ -1,48 +1,34 @@
 package net.geertvos.gvm.core;
 
-import java.util.Map;
 import java.util.Stack;
 import java.util.concurrent.CountDownLatch;
 
 import net.geertvos.gvm.core.Value.TYPE;
 import net.geertvos.gvm.program.GVMFunction;
-import net.geertvos.gvm.program.GVMProgram;
 import net.geertvos.gvm.program.GVMHeap;
+import net.geertvos.gvm.program.GVMProgram;
 import net.geertvos.gvm.streams.RandomAccessByteStream;
 
 public class GVMThread {
 
-	//The stack for the virtual machine, holds local variables and intermediate results
-	private final Stack<Value> stack = new Stack<Value>();
-
-	//The start location on the stack of the current frame
-	private int framepointer;
-	
-	//The current identifier of the function
-	private int functionPointer;
-
-	//The current line number
-	private int debugLineNumber = -1;
-
-	//Stack frames
-	private final Stack<StackFrame> callStack = new Stack<>();
-	
-	//Bytecode of the current function
-	private RandomAccessByteStream bytecode;
-	
-	//Current program
-	private GVMProgram program;
-
-	private int location;
-
+	private final GVMProgram program;
 	private final GVMHeap heap;
 
-	private CountDownLatch finishedLatch = new CountDownLatch(1); 
+	private int framepointer;
+	private int functionPointer;
+	private int debugLineNumber = -1;
+	private final Stack<StackFrame> callStack = new Stack<>();
+	private final Stack<Value> stack = new Stack<Value>();
+	private RandomAccessByteStream executingBytecode;
+
+	private int location; //reference to the name of this module/file/source
+
+	private CountDownLatch threadFinishedLatch = new CountDownLatch(1); 
 	
 	public GVMThread(GVMProgram program, GVMHeap heap) {
-		framepointer = 0;
-		functionPointer = 0;
-		debugLineNumber = -1;
+		this.framepointer = 0;
+		this.functionPointer = 0;
+		this.debugLineNumber = -1;
 		this.heap = heap;
 		this.program = program;
 	}
@@ -72,19 +58,15 @@ public class GVMThread {
 	}
 
 	public RandomAccessByteStream getBytecode() {
-		return bytecode;
+		return executingBytecode;
 	}
 
 	public void setBytecode(RandomAccessByteStream bytecode) {
-		this.bytecode = bytecode;
+		this.executingBytecode = bytecode;
 	}
 
 	public GVMProgram getProgram() {
 		return program;
-	}
-
-	public void setProgram(GVMProgram program) {
-		this.program = program;
 	}
 
 	public int getLocation() {
@@ -125,12 +107,12 @@ public class GVMThread {
 	}
 	
 	void markThreadFinished() {
-		finishedLatch.countDown();
+		threadFinishedLatch.countDown();
 	}
 	
 	void awaitFinished() {
 		try {
-			finishedLatch.await();
+			threadFinishedLatch.await();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}

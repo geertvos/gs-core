@@ -12,6 +12,7 @@ import net.geertvos.gvm.core.GVMObject;
 import net.geertvos.gvm.core.Value;
 import net.geertvos.gvm.core.Value.TYPE;
 import net.geertvos.gvm.program.GVMProgram;
+import net.geertvos.gvm.program.GVMContext;
 import net.geertvos.gvm.program.GVMHeap;
 
 @SuppressWarnings("rawtypes")
@@ -24,9 +25,9 @@ public class NativeStaticMethodAutoWrapper extends NativeMethodWrapper{
 	}
 
 	@Override
-	public Value invoke(List<Value> arguments, GVMHeap heap, GVMProgram program) {
+	public Value invoke(List<Value> arguments, GVMContext context) {
 		Collections.reverse(arguments);
-		ValueConverter converter = new ValueConverter(heap, program);
+		ValueConverter converter = new ValueConverter(context);
 		String classname = converter.convertFromGVM(arguments.get(0)).toString();
 		String method = converter.convertFromGVM(arguments.get(1)).toString();
 			try {

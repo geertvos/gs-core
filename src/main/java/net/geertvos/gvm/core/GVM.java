@@ -15,6 +15,7 @@ import net.geertvos.gvm.bridge.NativeObjectWrapper;
 import net.geertvos.gvm.core.Value.TYPE;
 import net.geertvos.gvm.gc.MarkAndSweepGarbageCollector;
 import net.geertvos.gvm.gc.GarbageCollector;
+import net.geertvos.gvm.program.GVMContext;
 import net.geertvos.gvm.program.GVMFunction;
 import net.geertvos.gvm.program.GVMProgram;
 import net.geertvos.gvm.program.GVMHeap;
@@ -39,7 +40,7 @@ public class GVM {
 	private GarbageCollector gc = new MarkAndSweepGarbageCollector();
 	
 	//The heap contains the objects
-	private final GVMHeap heap = new GVMHeap();
+	private final GVMHeap heap;
 	
 	//Current program
 	private GVMProgram program;
@@ -48,7 +49,13 @@ public class GVM {
 	
 	public GVM( GVMProgram program )
 	{
+		this(program, new GVMHeap());
+	}
+	
+	public GVM( GVMProgram program, GVMHeap heap )
+	{
 		this.program = program;
+		this.heap = heap;
 	}
 	
 	public void run()
@@ -106,7 +113,7 @@ public class GVM {
 	}
 
 
-	private boolean fetchAndDecode(GVMThread thread) {
+	public boolean fetchAndDecode(GVMThread thread) {
 		int instruction= GVM.HALT;
 		//Fetch
 		instruction = thread.getBytecode().read();
@@ -263,7 +270,7 @@ public class GVM {
 					}
 					if(variableName.equals("bytes")) {
 						String s = program.getString(reference.getValue());
-						int index = heap.addObject(new NativeObjectWrapper(s.getBytes(), heap, program));
+						int index = heap.addObject(new NativeObjectWrapper(s.getBytes(), new GVMContext(program, heap, thread)));
 						thread.getStack().push(new Value(index, TYPE.OBJECT));
 						break;
 					}
@@ -534,7 +541,7 @@ public class GVM {
 				args.add( thread.getStack().pop() );
 			
 			try {
-				Value returnVal = wrapper.invoke(args ,heap, program);
+				Value returnVal = wrapper.invoke(args , new GVMContext(program, heap, thread));
 				thread.getStack().push(returnVal);
 			} catch(Exception e) {
 				thread.handleException( e.getMessage());
