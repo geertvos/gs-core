@@ -1,10 +1,13 @@
 package net.geertvos.gvm.program;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 
 import net.geertvos.gvm.bridge.NativeMethodWrapper;
+import net.geertvos.gvm.core.Type;
 
 /**
  * Represents a program that can be executed by the GVM. A program contains
@@ -15,10 +18,11 @@ import net.geertvos.gvm.bridge.NativeMethodWrapper;
  */
 public class GVMProgram {
 
+	private final String name;
 	private final List<GVMFunction> functions = new ArrayList<GVMFunction>();
 	private List<String> stringConstants = new ArrayList<String>();
 	private List<NativeMethodWrapper> nativeWrappers = new ArrayList<NativeMethodWrapper>();
-	private final String name;
+	private Map<String,Type> types = new HashMap<String,Type>();
 
 	public GVMProgram(String name) {
 		this.name = name;
@@ -95,6 +99,14 @@ public class GVMProgram {
 
 	public List<GVMFunction> getFunctions() {
 		return functions;
+	}
+
+	public Type getType(Type type) {
+		return types .get(type);
+	}
+	
+	public void registerType(Type type) {
+		this.types.put(type.getName(), type);
 	}
 
 }

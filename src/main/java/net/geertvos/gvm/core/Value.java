@@ -3,21 +3,17 @@ package net.geertvos.gvm.core;
 
 public class Value {
 
-	public enum TYPE {
-		OBJECT,FUNCTION,NUMBER,STRING,BOOLEAN,UNDEFINED;
-	}
-	
-	private TYPE type;
+	private Type type;
 	private int value;
 	private String comment;
 	
-	public Value( int value , TYPE type )
+	public Value( int value , Type type )
 	{
 		this.value = value;
 		this.type = type;
 	}
 
-	public Value( int value , TYPE type , String comment )
+	public Value( int value , Type type , String comment )
 	{
 		this.value = value;
 		this.type = type;
@@ -25,7 +21,7 @@ public class Value {
 	}
 
 	public Value() {
-		this.type = Value.TYPE.UNDEFINED;
+		this.type = new Undefined();
 	}
 
 	public int getValue() {

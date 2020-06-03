@@ -163,6 +163,14 @@ public class GVM {
 			thread.getStack().push( new Value(arg, Value.TYPE.FUNCTION) );
 		}
 		break;
+		case LDC_D:
+		{
+			int arg = thread.getBytecode().readInt();
+			String typeName = thread.getBytecode().readString();
+			Type type = program.getType(type);
+			thread.getStack().push( new Value(arg, Value.TYPE.FUNCTION) );
+		}
+		break;
 		case INVOKE:
 			{
 				//Pop the function reference
