@@ -9,6 +9,9 @@ public class Value {
 	
 	public Value( int value , Type type )
 	{
+		if(type == null) {
+			throw new IllegalArgumentException("Value cannot be null.");
+		}
 		this.value = value;
 		this.type = type;
 	}
@@ -32,11 +35,11 @@ public class Value {
 		this.value = value;
 	}
 
-	public TYPE getType() {
+	public Type getType() {
 		return type;
 	}
 
-	public void setType(TYPE type) {
+	public void setType(Type type) {
 		this.type = type;
 	}
 	

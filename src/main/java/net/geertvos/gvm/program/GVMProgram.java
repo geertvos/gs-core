@@ -4,10 +4,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.geertvos.gvm.bridge.NativeMethodWrapper;
+import net.geertvos.gvm.bridge.ValueConverter;
+import net.geertvos.gvm.core.BooleanType;
+import net.geertvos.gvm.core.FunctionType;
+import net.geertvos.gvm.core.GVMExceptionHandler;
 import net.geertvos.gvm.core.Type;
+import net.geertvos.gvm.core.Undefined;
 
 /**
  * Represents a program that can be executed by the GVM. A program contains
@@ -19,17 +24,22 @@ import net.geertvos.gvm.core.Type;
 public class GVMProgram {
 
 	private final String name;
-	private final List<GVMFunction> functions = new ArrayList<GVMFunction>();
-	private List<String> stringConstants = new ArrayList<String>();
+	private final Map<Integer,GVMFunction> functions = new HashMap<Integer,GVMFunction>();
+	private final List<String> stringConstants = new ArrayList<String>();
+	private final Map<String,Type> types = new HashMap<String,Type>();
+	private final GVMExceptionHandler exceptionHandler;
+	private final ValueConverter converter;
+	private final AtomicInteger functionCounter = new AtomicInteger();
+	
 	private List<NativeMethodWrapper> nativeWrappers = new ArrayList<NativeMethodWrapper>();
-	private Map<String,Type> types = new HashMap<String,Type>();
-
-	public GVMProgram(String name) {
+	
+	public GVMProgram(String name, GVMExceptionHandler exceptionHandler, ValueConverter converter) {
 		this.name = name;
-	}
-
-	public void addFunction(GVMFunction f, int index) {
-		functions.add(index, f);
+		this.converter = converter;
+		this.exceptionHandler = exceptionHandler;
+		registerType(new BooleanType());
+		registerType(new Undefined());
+		registerType(new FunctionType());
 	}
 
 	public void addString(String s, int index) {
@@ -71,10 +81,6 @@ public class GVMProgram {
 		return nativeWrappers;
 	}
 
-	public boolean add(GVMFunction arg0) {
-		return functions.add(arg0);
-	}
-
 	public int add(NativeMethodWrapper method) {
 		nativeWrappers.add(method);
 		return nativeWrappers.indexOf(method);
@@ -85,28 +91,41 @@ public class GVMProgram {
 	}
 
 	public int addFunction(GVMFunction function) {
-		functions.add(function);
-		return functions.indexOf(function);
+		int id = functionCounter.getAndIncrement();
+		functions.put(id, function);
+		return id;
 	}
 
-	public int getFunctionIndex(GVMFunction function) {
-		return functions.indexOf(function);
+	public void deleteFunction(int id) {
+		functions.remove(id);
 	}
 
 	public void setNatives(List<NativeMethodWrapper> natives) {
 		this.nativeWrappers = natives;
 	}
 
-	public List<GVMFunction> getFunctions() {
+	public Map<Integer,GVMFunction> getFunctions() {
 		return functions;
 	}
 
-	public Type getType(Type type) {
-		return types .get(type);
+	public Type getType(String typeName) {
+		if(types.containsKey(typeName)) {
+			return types .get(typeName);
+		} else {
+			throw new IllegalArgumentException("Type: "+typeName+" is not a known type.");
+		}
 	}
 	
 	public void registerType(Type type) {
 		this.types.put(type.getName(), type);
+	}
+	
+	public GVMExceptionHandler getExceptionHandler() {
+		return exceptionHandler;
+	}
+	
+	public ValueConverter getConverter() {
+		return converter;
 	}
 
 }
