@@ -237,17 +237,29 @@ public class GVM {
 			}
 			break;
 		case GET:
-			{
-				Value reference = thread.getStack().pop();	//pop value which must be a reference to object
-				String variableName = thread.getBytecode().readString();
-				if(!reference.getType().supportsOperation(Operations.GET)) {
-					thread.handleException( "Type does not support get operation: "+reference+" pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer());
-					break;
-				}
-				Value value = reference.getType().perform(context, Operations.GET, reference, variableName);
-				thread.getStack().push(value);
+		{
+			Value reference = thread.getStack().pop();	//pop value which must be a reference to object
+			String variableName = thread.getBytecode().readString();
+			if(!reference.getType().supportsOperation(Operations.GET)) {
+				thread.handleException( "Type does not support get operation: "+reference+" pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer());
+				break;
 			}
-			break;
+			Value value = reference.getType().perform(context, Operations.GET, reference, variableName);
+			thread.getStack().push(value);
+		}
+		break;
+		case GETINDEX:
+		{
+			Value reference = thread.getStack().pop();	//pop value which must be a reference to object
+			int index = thread.getBytecode().readInt();
+			if(!reference.getType().supportsOperation(Operations.INDEX)) {
+				thread.handleException( "Type does not support get operation: "+reference+" pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer());
+				break;
+			}
+			Value value = reference.getType().perform(context, Operations.INDEX, reference, index);
+			thread.getStack().push(value);
+		}
+		break;
 		case GETDYNAMIC:
 		{
 			String variableName = thread.getBytecode().readString();
@@ -480,6 +492,7 @@ public class GVM {
 	public static final byte RETURN=9;	//POP PC from the stack and set PC to old PC, leave return values on the stack
 	public static final byte PUT=10;		//Pop variable to set from the stack, then pop the new value from the stack. Copies the values from the latter to the first.
 	public static final byte GET=11;		//Pop reference from the stack, load value <ID> from reference and push on stack
+	public static final byte GETINDEX=36;	//Same as get, but not with String but Integer
 	public static final byte GETDYNAMIC = 35; //Get a field from the current scope. If it does not exists, check parent scope.. etc.. until nothing found. Then a new field is created in the current scope.
 	public static final byte HALT=12;	//End machine
 	

@@ -15,7 +15,7 @@ public interface Type {
 	
 	Value perform(GVMContext context, Operations op, Value thisValue, Value otherValue);
 
-	Value perform(GVMContext context, Operations op, Value thisValue, String parameter);
+	Value perform(GVMContext context, Operations op, Value thisValue, Object parameter);
 	
 	//TODO: Merge the Operations enum with the OP codes
 	enum Operations {
@@ -33,6 +33,7 @@ public interface Type {
 		GET,
 		INVOKE, 
 		NEW,
+		INDEX
 	}
 	
 }

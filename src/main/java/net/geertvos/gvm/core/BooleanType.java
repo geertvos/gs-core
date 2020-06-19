@@ -48,9 +48,8 @@ public class BooleanType implements Type {
 	}
 
 	@Override
-	public Value perform(GVMContext context, Operations op, Value thisValue, String parameter) {
-		// TODO Auto-generated method stub
-		return null;
+	public Value perform(GVMContext context, Operations op, Value thisValue, Object parameter) {
+		throw new IllegalArgumentException("Operation " + op + " is not supported by type " + getName());
 	}
 
 }

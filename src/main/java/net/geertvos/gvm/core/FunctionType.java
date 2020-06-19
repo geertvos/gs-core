@@ -23,8 +23,8 @@ public class FunctionType implements Type {
 	}
 
 	@Override
-	public Value perform(GVMContext context, Operations op, Value thisValue, String parameter) {
-		return null;
+	public Value perform(GVMContext context, Operations op, Value thisValue, Object parameter) {
+		throw new IllegalArgumentException("Operation " + op + " is not supported by type " + getName());
 	}
 
 }
