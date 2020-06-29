@@ -1,23 +1,20 @@
 package net.geertvos.gvm.core;
 
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Stack;
 
 import net.geertvos.gvm.bridge.NativeMethodWrapper;
-import net.geertvos.gvm.bridge.NativeObjectWrapper;
-import net.geertvos.gvm.core.Value.TYPE;
-import net.geertvos.gvm.gc.MarkAndSweepGarbageCollector;
+import net.geertvos.gvm.core.Type.Operations;
 import net.geertvos.gvm.gc.GarbageCollector;
+import net.geertvos.gvm.gc.MarkAndSweepGarbageCollector;
+import net.geertvos.gvm.program.GVMContext;
 import net.geertvos.gvm.program.GVMFunction;
-import net.geertvos.gvm.program.GVMProgram;
 import net.geertvos.gvm.program.GVMHeap;
+import net.geertvos.gvm.program.GVMProgram;
 import net.geertvos.gvm.streams.RandomAccessByteStream;
 
 /**
@@ -39,7 +36,7 @@ public class GVM {
 	private GarbageCollector gc = new MarkAndSweepGarbageCollector();
 	
 	//The heap contains the objects
-	private final GVMHeap heap = new GVMHeap();
+	private final GVMHeap heap;
 	
 	//Current program
 	private GVMProgram program;
@@ -48,7 +45,13 @@ public class GVM {
 	
 	public GVM( GVMProgram program )
 	{
+		this(program, new GVMHeap());
+	}
+	
+	public GVM( GVMProgram program, GVMHeap heap )
+	{
 		this.program = program;
+		this.heap = heap;
 	}
 	
 	public void run()
@@ -60,8 +63,10 @@ public class GVM {
 		//The following bytecode loads function#0 from the program and invokes it without parameters.
 		RandomAccessByteStream bytecode = new RandomAccessByteStream();
 		bytecode.write( NEW );
-		bytecode.write( LDC_F );
+		bytecode.writeString("Object");
+		bytecode.write( LDC_D );
 		bytecode.writeInt(0);
+		bytecode.writeString(new FunctionType().getName());
 		bytecode.write( INVOKE );
 		bytecode.writeInt(0);
 		bytecode.write( HALT );
@@ -106,7 +111,8 @@ public class GVM {
 	}
 
 
-	private boolean fetchAndDecode(GVMThread thread) {
+	public boolean fetchAndDecode(GVMThread thread) {
+		GVMContext context = new GVMContext(program, heap, thread);
 		int instruction= GVM.HALT;
 		//Fetch
 		instruction = thread.getBytecode().read();
@@ -114,8 +120,14 @@ public class GVM {
 		switch (instruction) {
 		case NEW:
 		{
-			int id = heap.addObject(new GVMPlainObject());
-			thread.getStack().push( new Value(id,Value.TYPE.OBJECT));
+			String typeName = thread.getBytecode().readString();
+			Type type = program.getType(typeName);
+			if(type.supportsOperation(Operations.NEW)) {
+				Value v = type.perform(context, Operations.NEW, null, (Value)null);
+				context.getThread().getStack().push(v);
+			} else {
+				thread.handleException("Type "+typeName+" does not support NEW.");
+			}
 		}
 		break;
 		case LDS:
@@ -134,33 +146,12 @@ public class GVM {
 			thread.getStack().push(thread.getStack().get(thread.getStack().size()-1));
 		}
 		break;
-		case LDC_N:
+		case LDC_D:
 		{
 			int arg = thread.getBytecode().readInt();
-			thread.getStack().push( new Value(arg, Value.TYPE.NUMBER) );
-		}
-		break;
-		case LDC_S:
-		{
-			int arg = thread.getBytecode().readInt();
-			thread.getStack().push( new Value(arg, Value.TYPE.STRING) );
-		}
-		break;
-		case LDC_B:
-		{
-			int arg = thread.getBytecode().read();
-			thread.getStack().push( new Value(arg, Value.TYPE.BOOLEAN) );
-		}
-		break;
-		case LDC_U:
-		{
-			thread.getStack().push( new Value(0, Value.TYPE.UNDEFINED) );
-		}
-		break;
-		case LDC_F:
-		{
-			int arg = thread.getBytecode().readInt();
-			thread.getStack().push( new Value(arg, Value.TYPE.FUNCTION) );
+			String typeName = thread.getBytecode().readString();
+			Type type = program.getType(typeName);
+			thread.getStack().push( new Value(arg, type) );
 		}
 		break;
 		case INVOKE:
@@ -168,8 +159,8 @@ public class GVM {
 				//Pop the function reference
 				int argCount = thread.getBytecode().readInt();
 				Value calleeFunction = thread.getStack().pop();
-				if( calleeFunction.getType() != Value.TYPE.FUNCTION ){
-					thread.handleException( "Calling a non function: "+calleeFunction);
+				if( !calleeFunction.getType().supportsOperation(Operations.INVOKE) ){
+					thread.handleException( "Invoking a type that does not support invocation: "+calleeFunction.getType());
 					break;
 				}
 
@@ -201,7 +192,7 @@ public class GVM {
 				}
 				for( int i=0;i<functionDescription.getLocals().size();i++)
 				{
-					thread.getStack().push(new Value(0,TYPE.UNDEFINED,"Local variable"));
+					thread.getStack().push(new Value(0,new Undefined(),"Local variable"));
 				}					
 				thread.setBytecode(functionDescription.getBytecode().clone());
 				thread.getBytecode().seek(0);
@@ -246,44 +237,29 @@ public class GVM {
 			}
 			break;
 		case GET:
-			{
-				Value reference = thread.getStack().pop();	//pop value which must be a reference to object
-				String variableName = thread.getBytecode().readString();
-				//TODO: Move these to the language implementation 
-				if(variableName.equals("ref")) {
-					int ref = reference.getValue();
-					thread.getStack().push(new Value(ref, TYPE.NUMBER));
-					break;
-				}
-				if(reference.getType() == Value.TYPE.STRING) {
-					if(variableName.equals("length")) {
-						String s = program.getString(reference.getValue());
-						thread.getStack().push(new Value(s.length(), TYPE.NUMBER));
-						break;
-					}
-					if(variableName.equals("bytes")) {
-						String s = program.getString(reference.getValue());
-						int index = heap.addObject(new NativeObjectWrapper(s.getBytes(), heap, program));
-						thread.getStack().push(new Value(index, TYPE.OBJECT));
-						break;
-					}
-					if(variableName.equals("lowercase")) {
-						String lowercased = program.getString(reference.getValue()).toLowerCase();
-						int ref = program.addString(lowercased);
-						thread.getStack().push(new Value(ref, Value.TYPE.STRING, "lowercase"));
-						break;
-					}
-					thread.handleException( "String does not support: "+variableName+" at pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer());
-					break;
-				}
-				if( reference.getType() != Value.TYPE.OBJECT ){
-					thread.handleException( "Not a reference to an object: "+reference+" pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer());
-					break;
-				}
-				GVMObject vo = heap.getObject(reference.getValue());
-				thread.getStack().push(vo.getValue(variableName));
+		{
+			Value reference = thread.getStack().pop();	//pop value which must be a reference to object
+			String variableName = thread.getBytecode().readString();
+			if(!reference.getType().supportsOperation(Operations.GET)) {
+				thread.handleException( "Type does not support get operation: "+reference+" pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer());
+				break;
 			}
-			break;
+			Value value = reference.getType().perform(context, Operations.GET, reference, variableName);
+			thread.getStack().push(value);
+		}
+		break;
+		case GETINDEX:
+		{
+			Value index = thread.getStack().pop();	//pop value which represent the index
+			Value reference = thread.getStack().pop();	//pop value which must be a reference to object
+			if(!reference.getType().supportsOperation(Operations.INDEX)) {
+				thread.handleException( "Type does not support GETINDEX operation: "+reference+" pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer());
+				break;
+			}
+			Value value = reference.getType().perform(context, Operations.INDEX, reference, index);
+			thread.getStack().push(value);
+		}
+		break;
 		case GETDYNAMIC:
 		{
 			String variableName = thread.getBytecode().readString();
@@ -291,7 +267,7 @@ public class GVM {
 			for(StackFrame frame : thread.getCallStack()) {
 				Value scope = frame.getScope();
 				GVMObject object = heap.getObject(scope.getValue());
-				if(object.getValue(variableName).getType() != TYPE.UNDEFINED) {
+				if(object.hasValue(variableName)) {
 					theValue = object.getValue(variableName);
 					break;
 				}
@@ -310,191 +286,122 @@ public class GVM {
 			}
 		case ADD: 
 		{
-			Value arg1 = thread.getStack().pop();
 			Value arg2 = thread.getStack().pop();
-			if( arg1.getType()==Value.TYPE.NUMBER && arg2.getType()==Value.TYPE.NUMBER)
-			{
-				Value returnValue = new Value(arg1.getValue()+arg2.getValue(),Value.TYPE.NUMBER);
-				thread.getStack().push(returnValue);
+			Value arg1 = thread.getStack().pop();
+			if(arg1.getType().supportsOperation(Operations.ADD)) {
+				Value result = arg1.getType().perform(context, Operations.ADD, arg1, arg2);
+				thread.getStack().push(result);
 			}
-			else if( arg1.getType()==Value.TYPE.NUMBER && arg2.getType()==Value.TYPE.STRING)
-			{
-				String value = program.getString(arg2.getValue())+arg1.getValue();
-				int val = program.addString(value);
-				Value returnValue = new Value(val,Value.TYPE.STRING);
-				thread.getStack().push(returnValue);
-			}
-			else if( arg1.getType()==Value.TYPE.STRING && arg2.getType()==Value.TYPE.NUMBER)
-			{
-				String value = arg2.getValue() + program.getString(arg1.getValue());
-				int val = program.addString(value);
-				Value returnValue = new Value(val,Value.TYPE.STRING);
-				thread.getStack().push(returnValue);
-			}
-			else if( arg1.getType()==Value.TYPE.STRING && arg2.getType()==Value.TYPE.STRING)
-			{
-				int val = program.addString(program.getString(arg2.getValue())+program.getString(arg1.getValue()));
-				Value returnValue = new Value(val,Value.TYPE.STRING);
-				thread.getStack().push(returnValue);
-			}
-			else if( arg1.getType()==Value.TYPE.STRING && arg2.getType()==Value.TYPE.OBJECT)
-			{
-				GVMObject o = heap.getObject(arg2.getValue());
-				int val = program.addString(o.toString()+program.getString(arg1.getValue()));
-				Value returnValue = new Value(val,Value.TYPE.STRING);
-				thread.getStack().push(returnValue);
-			}
-			else if( arg1.getType()==Value.TYPE.OBJECT && arg2.getType()==Value.TYPE.STRING)
-			{
-				GVMObject o = heap.getObject(arg1.getValue());
-				int val = program.addString(program.getString(arg2.getValue())+o.toString());
-				Value returnValue = new Value(val,Value.TYPE.STRING);
-				thread.getStack().push(returnValue);
-			}
-			else if( arg1.getType()==Value.TYPE.STRING && arg2.getType()==Value.TYPE.BOOLEAN)
-			{
-				int val = program.addString((arg2.getValue()==1?"true":"false")+program.getString(arg1.getValue()));
-				Value returnValue = new Value(val,Value.TYPE.STRING);
-				thread.getStack().push(returnValue);
-			}
-			else if( arg1.getType()==Value.TYPE.BOOLEAN && arg2.getType()==Value.TYPE.STRING)
-			{
-				int val = program.addString(program.getString(arg2.getValue())+(arg1.getValue()==1?"true":"false"));
-				Value returnValue = new Value(val,Value.TYPE.STRING);
-				thread.getStack().push(returnValue);
-			}
-			else thread.handleException( "Incompatible types cannot be added "+arg1.getType()+" and "+arg2.getType()+"!");
+			else thread.handleException("Type "+arg1.getType().getName()+" does not support addition.");
 			break;
 		}
 		case SUB: 
 		{
 			Value arg2 = thread.getStack().pop();
 			Value arg1 = thread.getStack().pop();
-			if( arg1.getType()==Value.TYPE.NUMBER && arg2.getType()==Value.TYPE.NUMBER)
-			{
-				Value returnValue = new Value(arg1.getValue()-arg2.getValue(),Value.TYPE.NUMBER);
-				thread.getStack().push(returnValue);
+			if(arg1.getType().supportsOperation(Operations.SUB)) {
+				Value result = arg1.getType().perform(context, Operations.SUB, arg1, arg2);
+				thread.getStack().push(result);
 			}
-			else thread.handleException( "Only numbers can be substracted!");
+			else thread.handleException("Type "+arg1.getType().getName()+" does not support substraction.");
 			break;
 		}
 		case MULT: 
 		{
 			Value arg2 = thread.getStack().pop();
 			Value arg1 = thread.getStack().pop();
-			if( arg1.getType()==Value.TYPE.NUMBER && arg2.getType()==Value.TYPE.NUMBER)
-			{
-				Value returnValue = new Value(arg1.getValue()*arg2.getValue(), Value.TYPE.NUMBER);
-				thread.getStack().push(returnValue);
+			if(arg1.getType().supportsOperation(Operations.MULT)) {
+				Value result = arg1.getType().perform(context, Operations.MULT, arg1, arg2);
+				thread.getStack().push(result);
 			}
-			else thread.handleException( "Only numbers can be multiplied!");
+			else thread.handleException("Type "+arg1.getType().getName()+" does not support multiplication.");
 			break;
 		}
 		case DIV: 
 		{
 			Value arg2 = thread.getStack().pop();
 			Value arg1 = thread.getStack().pop();
-			if( arg1.getType()==Value.TYPE.NUMBER && arg2.getType()==Value.TYPE.NUMBER)
-			{
-				if( arg2.getValue() == 0 )
-				{
-					thread.handleException( "Division by zero");
-					break;
-				} else {
-					Value returnValue = new Value(arg1.getValue()/arg2.getValue(),Value.TYPE.NUMBER);
-					thread.getStack().push(returnValue);
-				}
+			if(arg1.getType().supportsOperation(Operations.DIV)) {
+				Value result = arg1.getType().perform(context, Operations.DIV, arg1, arg2);
+				thread.getStack().push(result);
 			}
-			else thread.handleException( "Only numbers can be divided!");
+			else thread.handleException("Type "+arg1.getType().getName()+" does not support division.");
 			break;
 		}
 		case MOD: 
 		{
 			Value arg2 = thread.getStack().pop();
 			Value arg1 = thread.getStack().pop();
-			if( arg1.getType()==Value.TYPE.NUMBER && arg2.getType()==Value.TYPE.NUMBER)
-			{
-				if( arg2.getValue() == 0 )
-				{
-					thread.handleException( "Division by zero");
-					break;
-				} else {
-					Value returnValue = new Value(arg1.getValue()%arg2.getValue(),Value.TYPE.NUMBER);
-					thread.getStack().push(returnValue);
-				}
+			if(arg1.getType().supportsOperation(Operations.MOD)) {
+				Value result = arg1.getType().perform(context, Operations.MOD, arg1, arg2);
+				thread.getStack().push(result);
 			}
-			else thread.handleException( "Modulus only accepts numbers as arguments!");
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support modulo.");
 			break;
 		}
 		case AND: 
 		{
 			Value arg2 = thread.getStack().pop();
 			Value arg1 = thread.getStack().pop();
-			if( arg1.getType()==Value.TYPE.BOOLEAN && arg2.getType()==Value.TYPE.BOOLEAN)
-			{
-				int result = (arg1.getValue()>0 && arg2.getValue()>0)?1:0;
-				Value returnValue = new Value(result, Value.TYPE.BOOLEAN);
-				thread.getStack().push(returnValue);
+			if(arg1.getType().supportsOperation(Operations.AND)) {
+				Value result = arg1.getType().perform(context, Operations.AND, arg1, arg2);
+				thread.getStack().push(result);
 			}
-			else thread.handleException( "Only booleans can be ANDed!");
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support AND.");
 			break;
 		}
 		case OR: 
 		{
 			Value arg2 = thread.getStack().pop();
 			Value arg1 = thread.getStack().pop();
-			if( arg1.getType()==Value.TYPE.BOOLEAN && arg2.getType()==Value.TYPE.BOOLEAN)
-			{
-				int result = (arg1.getValue()>0 || arg2.getValue()>0)?1:0;
-				Value returnValue = new Value(result, Value.TYPE.BOOLEAN);
-				thread.getStack().push(returnValue);
+			if(arg1.getType().supportsOperation(Operations.OR)) {
+				Value result = arg1.getType().perform(context, Operations.OR, arg1, arg2);
+				thread.getStack().push(result);
 			}
-			else thread.handleException( "Only booleans can be ORed!");
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support OR.");
 			break;
 		}
 		case NOT: 
 		{
 			Value arg1 = thread.getStack().pop();
-			if( arg1.getType()==Value.TYPE.BOOLEAN )
-			{
-				int result = arg1.getValue()>0?0:1;
-				Value returnValue = new Value(result, Value.TYPE.BOOLEAN);
-				thread.getStack().push(returnValue);
+			if(arg1.getType().supportsOperation(Operations.NOT)) {
+				Value result = arg1.getType().perform(context, Operations.NOT, arg1, (Value)null);
+				thread.getStack().push(result);
 			}
-			else thread.handleException( "Only booleans can be NOTed!");
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support NOT.");
 			break;
 		}
 		case EQL: 
 		{
 			Value arg2 = thread.getStack().pop();
 			Value arg1 = thread.getStack().pop();
-			boolean tv = (arg1.getType() == arg2.getType()) && arg1.getValue() == arg2.getValue();
-			Value returnValue = new Value(tv?1:0, Value.TYPE.BOOLEAN);
-			thread.getStack().push(returnValue);
+			if(arg1.getType().supportsOperation(Operations.EQL)) {
+				Value result = arg1.getType().perform(context, Operations.EQL, arg1, arg2);
+				thread.getStack().push(result);
+			}
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support EQL.");
 			break;
 		}
 		case LT: 
 		{
 			Value arg2 = thread.getStack().pop();
 			Value arg1 = thread.getStack().pop();
-			if( arg1.getType() == Value.TYPE.NUMBER )
-			{
-				boolean tv = arg1.getType() == arg2.getType() && arg1.getValue() < arg2.getValue();
-				Value returnValue = new Value(tv?1:0, Value.TYPE.BOOLEAN);
-				thread.getStack().push(returnValue);
-			} else thread.handleException( "Only numbers can be compared");
+			if(arg1.getType().supportsOperation(Operations.LT)) {
+				Value result = arg1.getType().perform(context, Operations.LT, arg1, arg2);
+				thread.getStack().push(result);
+			}
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support LT.");
 			break;
 		}
 		case GT: 
 		{
 			Value arg2 = thread.getStack().pop();
 			Value arg1 = thread.getStack().pop();
-			if( arg1.getType() == Value.TYPE.NUMBER )
-			{
-				boolean tv = arg1.getType() == arg2.getType() && arg1.getValue() > arg2.getValue();
-				Value returnValue = new Value(tv?1:0, Value.TYPE.BOOLEAN);
-				thread.getStack().push(returnValue);
-			} else thread.handleException( "Only numbers can be compared");
+			if(arg1.getType().supportsOperation(Operations.GT)) {
+				Value result = arg1.getType().perform(context, Operations.GT, arg1, arg2);
+				thread.getStack().push(result);
+			}
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support GT.");
 			break;
 		}
 		case JMP: 
@@ -507,14 +414,12 @@ public class GVM {
 		{
 			Value cond = thread.getStack().pop();
 			int jump = thread.getBytecode().readInt();
-			if( cond.getType() == Value.TYPE.BOOLEAN  )
+			//TODO: check if we want to make the positive check an operation
+			if( cond.getValue() > 0)
 			{
-				if( cond.getValue() > 0)
-				{
-					thread.getBytecode().seek(jump);
-				} 
-				break;
-			} else thread.handleException( "Condition should be a boolean value.");
+				thread.getBytecode().seek(jump);
+			} 
+			break;
 		}			
 		case POP:
 		{
@@ -523,20 +428,26 @@ public class GVM {
 		}
 		case NATIVE: {
 			Value arg = thread.getStack().pop();
-			if (arg.getType() != Value.TYPE.FUNCTION)
+			if (!arg.getType().supportsOperation(Operations.INVOKE))
 			{
-				thread.handleException( "Calling a non function: " + arg);
+				thread.handleException( "Type: "+arg.getType().getName()+" does not support invocation.");
 				break;
 			}
+			//TODO: Can we link what to invoke to the type somehow?
 			NativeMethodWrapper wrapper = program.getNativeWrappers().get( arg.getValue() );
 			List<Value> args = new ArrayList<Value>();
 			for(int i=0; i <wrapper.argumentCount() ; i++)
 				args.add( thread.getStack().pop() );
 			
 			try {
-				Value returnVal = wrapper.invoke(args ,heap, program);
+				Value returnVal = wrapper.invoke(args , new GVMContext(program, heap, thread));
 				thread.getStack().push(returnVal);
 			} catch(Exception e) {
+				if(e instanceof InvocationTargetException) {
+					Throwable cause = ((InvocationTargetException)e).getCause();
+					thread.handleException( cause.getMessage());
+					break;
+				}
 				thread.handleException( e.getMessage());
 			}
 			this.gc.collect(heap, threads);
@@ -544,13 +455,8 @@ public class GVM {
 		}	
 		case THROW: {
 			Value arg = thread.getStack().pop();
-			if (arg.getType() != Value.TYPE.STRING)
-			{
-				thread.handleException( "Exception thrown must be a String, not: " + arg.getType());
-				break;
-			}
-			String message = program.getString(arg.getValue());
-			thread.handleException(message);
+			Value exception = thread.getProgram().getExceptionHandler().convert(arg, context, thread.getDebugLineNumber(), thread.getLocation());
+			thread.handleExceptionObject(exception);
 			break;
 		}
 		case DEBUG: {
@@ -569,22 +475,24 @@ public class GVM {
 		}
 		return true;
 	}
-	
+	//TODO: Convert to enum and merge with Operations
 	//Stack manipulation
 	public static final byte NEW=1;     //Create an empty object and put reference on the stack
 	public static final byte LDS=2;		//Load value from the stack <pos> and put on top
 	public static final byte LDG=34;	//Load value from the stack <pos> and put on top, without using the framepointer.
 	public static final byte DUP=29;	//Duplicate the current top of the stack
 	//public static final byte LDF=3;		//Create a reference to function <ID> on the stack
-	public static final byte LDC_N=4;	//Push a number constant on the stack
-	public static final byte LDC_S=5;	//Push a string constant on the stack
-	public static final byte LDC_B=6;	//Push a boolean constant on the stack
-	public static final byte LDC_U=7;	//Push a undefined constant on the stack
-	public static final byte LDC_F=26;	//Push a function constant on the stack
+//	public static final byte LDC_N=4;	//Push a number constant on the stack
+//	public static final byte LDC_S=5;	//Push a string constant on the stack
+//	public static final byte LDC_B=6;	//Push a boolean constant on the stack
+//	public static final byte LDC_U=7;	//Push a undefined constant on the stack
+//	public static final byte LDC_F=26;	//Push a function constant on the stack
+	public static final byte LDC_D=34;	//Push a value of the specific type on the stack
 	public static final byte INVOKE=8; 	//PUT program counter on stack and set PC to location of function
 	public static final byte RETURN=9;	//POP PC from the stack and set PC to old PC, leave return values on the stack
 	public static final byte PUT=10;		//Pop variable to set from the stack, then pop the new value from the stack. Copies the values from the latter to the first.
 	public static final byte GET=11;		//Pop reference from the stack, load value <ID> from reference and push on stack
+	public static final byte GETINDEX=36;	//Same as get, but not with String but Integer
 	public static final byte GETDYNAMIC = 35; //Get a field from the current scope. If it does not exists, check parent scope.. etc.. until nothing found. Then a new field is created in the current scope.
 	public static final byte HALT=12;	//End machine
 	

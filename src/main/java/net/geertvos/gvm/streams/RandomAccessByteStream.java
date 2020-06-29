@@ -197,7 +197,7 @@ public class RandomAccessByteStream {
 	 *            the boolean
 	 */
 	public void writeBoolean(boolean val) {
-		write((byte) (val ? 1 : 0));
+		writeInt((val ? 1 : 0));
 	}
 
 	/**

@@ -9,6 +9,12 @@ public interface GVMObject {
 
 	Value getValue(String id);
 
+	boolean hasValue(String id);
+	
 	Collection<Value> getValues();
 
+	/**
+	 * The GC will call this method before it will be removed from the heap.
+	 */
+	void preDestroy();
 }
