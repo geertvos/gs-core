@@ -250,10 +250,10 @@ public class GVM {
 		break;
 		case GETINDEX:
 		{
+			Value index = thread.getStack().pop();	//pop value which must be a reference to object
 			Value reference = thread.getStack().pop();	//pop value which must be a reference to object
-			int index = thread.getBytecode().readInt();
 			if(!reference.getType().supportsOperation(Operations.INDEX)) {
-				thread.handleException( "Type does not support get operation: "+reference+" pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer());
+				thread.handleException( "Type does not support GETINDEX operation: "+reference+" pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer());
 				break;
 			}
 			Value value = reference.getType().perform(context, Operations.INDEX, reference, index);
