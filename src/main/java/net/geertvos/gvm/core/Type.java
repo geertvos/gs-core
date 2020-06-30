@@ -15,8 +15,6 @@ public interface Type {
 	
 	Value perform(GVMContext context, Operations op, Value thisValue, Value otherValue);
 
-	Value perform(GVMContext context, Operations op, Value thisValue, Object parameter);
-	
 	//TODO: Merge the Operations enum with the OP codes
 	enum Operations {
 		ADD,
@@ -33,7 +31,6 @@ public interface Type {
 		GET,
 		INVOKE, 
 		NEW,
-		INDEX
 	}
 	
 	boolean isInstance(Type otherType);
