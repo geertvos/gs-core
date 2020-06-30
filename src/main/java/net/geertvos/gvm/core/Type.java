@@ -36,4 +36,6 @@ public interface Type {
 		INDEX
 	}
 	
+	boolean isInstance(Type otherType);
+	
 }

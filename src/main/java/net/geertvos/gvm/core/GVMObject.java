@@ -5,6 +5,7 @@ import java.util.Collection;
 
 public interface GVMObject {
 
+	//TODO: Change interface and use Value instead of String
 	void setValue(String id, Value v);
 
 	Value getValue(String id);

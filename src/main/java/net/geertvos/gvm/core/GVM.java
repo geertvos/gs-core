@@ -238,8 +238,8 @@ public class GVM {
 			break;
 		case GET:
 		{
+			Value variableName = thread.getStack().pop();
 			Value reference = thread.getStack().pop();	//pop value which must be a reference to object
-			String variableName = thread.getBytecode().readString();
 			if(!reference.getType().supportsOperation(Operations.GET)) {
 				thread.handleException( "Type does not support get operation: "+reference+" pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer());
 				break;
@@ -248,21 +248,11 @@ public class GVM {
 			thread.getStack().push(value);
 		}
 		break;
-		case GETINDEX:
-		{
-			Value index = thread.getStack().pop();	//pop value which represent the index
-			Value reference = thread.getStack().pop();	//pop value which must be a reference to object
-			if(!reference.getType().supportsOperation(Operations.INDEX)) {
-				thread.handleException( "Type does not support GETINDEX operation: "+reference+" pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer());
-				break;
-			}
-			Value value = reference.getType().perform(context, Operations.INDEX, reference, index);
-			thread.getStack().push(value);
-		}
-		break;
 		case GETDYNAMIC:
 		{
-			String variableName = thread.getBytecode().readString();
+			Value variable = thread.getStack().pop();
+			//TODO: Replace this and move to types
+			String variableName = program.getString(variable.getValue());
 			Value theValue = null;
 			for(StackFrame frame : thread.getCallStack()) {
 				Value scope = frame.getScope();
@@ -470,6 +460,13 @@ public class GVM {
 			System.out.println("Breakpoint current line: "+thread.getDebugLineNumber());
 			break;
 		}
+		case FORK: {
+			//Create a new thread that continues the execution. Put a value on the Stack that allows the current thread to know if it is the old or the new one.
+			GVMThread newThread = new GVMThread(program, heap);
+			//Copy stack etc... 
+			//Push boolean that will tell if this is the new thread or not.
+			break;
+		}
 		default:
 			break;
 		}
@@ -492,7 +489,6 @@ public class GVM {
 	public static final byte RETURN=9;	//POP PC from the stack and set PC to old PC, leave return values on the stack
 	public static final byte PUT=10;		//Pop variable to set from the stack, then pop the new value from the stack. Copies the values from the latter to the first.
 	public static final byte GET=11;		//Pop reference from the stack, load value <ID> from reference and push on stack
-	public static final byte GETINDEX=36;	//Same as get, but not with String but Integer
 	public static final byte GETDYNAMIC = 35; //Get a field from the current scope. If it does not exists, check parent scope.. etc.. until nothing found. Then a new field is created in the current scope.
 	public static final byte HALT=12;	//End machine
 	
@@ -519,6 +515,7 @@ public class GVM {
 	//Stack manipulation
 	public static final byte POP=27;		//Just pop a value from the stack
 	public static final byte NATIVE=28;
+	public static final byte FORK=37;
 
 	public static final byte DEBUG=32;      //Tell the VM about the code that is being executed. For deubgging purposes.
 	public static final byte BREAKPOINT=33; //Tell the VM to pause and allow for inspection of heap and stack.

@@ -26,5 +26,14 @@ public class FunctionType implements Type {
 	public Value perform(GVMContext context, Operations op, Value thisValue, Object parameter) {
 		throw new IllegalArgumentException("Operation " + op + " is not supported by type " + getName());
 	}
+	
+	@Override
+	public boolean isInstance(Type otherType) {
+		if(otherType.getName().equals(getName())) {
+			return true;
+		}
+		return false;
+	}
+
 
 }

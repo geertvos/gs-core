@@ -104,8 +104,8 @@ public class DebugInfo {
 			}
 				break;
 			case GVM.GET: {
-				String fieldName = bytecode.readString();
-				out.println("GET "+fieldName);
+				//TODO: requires fix
+				out.println("GET");
 			}
 				break;
 			case GVM.HALT: {
