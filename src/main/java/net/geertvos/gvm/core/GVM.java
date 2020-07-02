@@ -3,9 +3,12 @@ package net.geertvos.gvm.core;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import net.geertvos.gvm.bridge.NativeMethodWrapper;
 import net.geertvos.gvm.core.Type.Operations;
@@ -41,7 +44,7 @@ public class GVM {
 	//Current program
 	private GVMProgram program;
 
-	private List<GVMThread> threads = new LinkedList<GVMThread>();
+	private Collection<GVMThread> threads = new ConcurrentLinkedDeque<GVMThread>();
 	
 	public GVM( GVMProgram program )
 	{
@@ -192,7 +195,7 @@ public class GVM {
 				}
 				for( int i=0;i<functionDescription.getLocals().size();i++)
 				{
-					thread.getStack().push(new Value(0,new Undefined(),"Local variable"));
+					thread.getStack().push(new Value(0,new Undefined(),"Local variable "+i));
 				}					
 				thread.setBytecode(functionDescription.getBytecode().clone());
 				thread.getBytecode().seek(0);
@@ -461,10 +464,8 @@ public class GVM {
 			break;
 		}
 		case FORK: {
-			//Create a new thread that continues the execution. Put a value on the Stack that allows the current thread to know if it is the old or the new one.
-			GVMThread newThread = new GVMThread(program, heap);
-			//Copy stack etc... 
-			//Push boolean that will tell if this is the new thread or not.
+			GVMThread newThread = thread.fork();
+			threads.add(newThread);
 			break;
 		}
 		default:
