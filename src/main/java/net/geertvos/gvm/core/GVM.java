@@ -474,24 +474,17 @@ public class GVM {
 		return true;
 	}
 	//TODO: Convert to enum and merge with Operations
+
 	//Stack manipulation
 	public static final byte NEW=1;     //Create an empty object and put reference on the stack
 	public static final byte LDS=2;		//Load value from the stack <pos> and put on top
 	public static final byte LDG=34;	//Load value from the stack <pos> and put on top, without using the framepointer.
 	public static final byte DUP=29;	//Duplicate the current top of the stack
-	//public static final byte LDF=3;		//Create a reference to function <ID> on the stack
-//	public static final byte LDC_N=4;	//Push a number constant on the stack
-//	public static final byte LDC_S=5;	//Push a string constant on the stack
-//	public static final byte LDC_B=6;	//Push a boolean constant on the stack
-//	public static final byte LDC_U=7;	//Push a undefined constant on the stack
-//	public static final byte LDC_F=26;	//Push a function constant on the stack
 	public static final byte LDC_D=34;	//Push a value of the specific type on the stack
-	public static final byte INVOKE=8; 	//PUT program counter on stack and set PC to location of function
-	public static final byte RETURN=9;	//POP PC from the stack and set PC to old PC, leave return values on the stack
 	public static final byte PUT=10;		//Pop variable to set from the stack, then pop the new value from the stack. Copies the values from the latter to the first.
+	public static final byte POP=27;		//Just pop a value from the stack
 	public static final byte GET=11;		//Pop reference from the stack, load value <ID> from reference and push on stack
 	public static final byte GETDYNAMIC = 35; //Get a field from the current scope. If it does not exists, check parent scope.. etc.. until nothing found. Then a new field is created in the current scope.
-	public static final byte HALT=12;	//End machine
 	
 	//Arithmetic
 	public static final byte ADD=14;		//Pop two values and add them
@@ -509,15 +502,16 @@ public class GVM {
 	public static final byte LT=23;		//Pop two values and return true if x<y
 
 	//Control flow
+	public static final byte NATIVE=28;
+	public static final byte INVOKE=8; 	//PUT program counter on stack and set PC to location of function
+	public static final byte RETURN=9;	//POP PC from the stack and set PC to old PC, leave return values on the stack
 	public static final byte CJMP=24;	//Pop value, if true set PC to argument
 	public static final byte JMP=25;		//Set PC to argument
 	public static final byte THROW=31;		//Pop value from the stack and throw as Exception
+	public static final byte HALT=12;	//End machine
+	public static final byte FORK=37;  //Branch of new thread
 	
-	//Stack manipulation
-	public static final byte POP=27;		//Just pop a value from the stack
-	public static final byte NATIVE=28;
-	public static final byte FORK=37;
-
+	//Debug
 	public static final byte DEBUG=32;      //Tell the VM about the code that is being executed. For deubgging purposes.
 	public static final byte BREAKPOINT=33; //Tell the VM to pause and allow for inspection of heap and stack.
 
