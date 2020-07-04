@@ -1,7 +1,7 @@
 package net.geertvos.gvm.gc;
 
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import net.geertvos.gvm.core.GVMObject;
@@ -15,7 +15,7 @@ public class MarkAndSweepGarbageCollector implements GarbageCollector {
 	private int currentHeapSizeTreshHold = 20;
 	
 	@Override
-	public void collect(GVMHeap heap, List<GVMThread> threads) {
+	public void collect(GVMHeap heap, Collection<GVMThread> threads) {
 		if( heap.size() < currentHeapSizeTreshHold )
 			return;
 		

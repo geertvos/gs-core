@@ -18,8 +18,8 @@ public class GVMThread {
 	private int framepointer;
 	private int functionPointer;
 	private int debugLineNumber = -1;
-	private final Stack<StackFrame> callStack = new Stack<>();
-	private final Stack<Value> stack = new Stack<Value>();
+	private final Stack<StackFrame> callStack;
+	private final Stack<Value> stack;
 	private RandomAccessByteStream executingBytecode;
 
 	private int location; //reference to the name of this module/file/source
@@ -32,6 +32,18 @@ public class GVMThread {
 		this.debugLineNumber = -1;
 		this.heap = heap;
 		this.program = program;
+		this.callStack = new Stack<>();
+		this.stack = new Stack<Value>();
+	}
+	
+	private GVMThread(GVMProgram program, GVMHeap heap, Stack<StackFrame> callStack, Stack<Value> stack) {
+		this.framepointer = 0;
+		this.functionPointer = 0;
+		this.debugLineNumber = -1;
+		this.heap = heap;
+		this.program = program;
+		this.stack = stack;
+		this.callStack = callStack;
 	}
 	
 	public int getFramepointer() {
@@ -161,6 +173,30 @@ public class GVMThread {
 				System.exit(1);
 			}
 		}
+	}
+
+	public GVMThread fork() {
+		Stack<StackFrame> newCallStack = (Stack<StackFrame>) getCallStack().clone(); 
+
+		StackFrame toclone = newCallStack.pop();
+		Value v = toclone.getScope();
+		GVMObject object = heap.getObject(v.getValue());
+		GVMObject clonedScope = object.clone();
+		int ref = heap.addObject(clonedScope);
+		Value newScope = new Value(ref, v.getType());
+		newCallStack.add(new StackFrame(toclone.getProgramCounter(), toclone.getFramePointer(), toclone.getCallingFunction(), toclone.getLineNumber(), toclone.getLocation(), newScope));
+
+		Stack<Value> newStack = (Stack<Value>) getStack().clone();
+		GVMThread thread = new GVMThread(program, heap, newCallStack, newStack);
+		thread.setBytecode(this.executingBytecode.clone());
+		thread.executingBytecode.seek(this.executingBytecode.getPointerPosition());
+		thread.setDebugLineNumber(debugLineNumber);
+		thread.setFramepointer(framepointer);
+		thread.setFunctionPointer(functionPointer);
+		thread.setLocation(location);
+		this.stack.push(new Value(0, new BooleanType(), "Fork return value"));
+		thread.stack.push(new Value(1, new BooleanType(), "Fork return value"));
+		return thread;
 	}
 
 	

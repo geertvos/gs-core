@@ -1,6 +1,5 @@
 package net.geertvos.gvm.core;
 
-import net.geertvos.gvm.core.Type.Operations;
 import net.geertvos.gvm.program.GVMContext;
 
 public class BooleanType implements Type {
