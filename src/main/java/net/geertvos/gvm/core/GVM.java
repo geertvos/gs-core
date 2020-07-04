@@ -5,10 +5,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import net.geertvos.gvm.bridge.NativeMethodWrapper;
 import net.geertvos.gvm.core.Type.Operations;
@@ -23,13 +21,6 @@ import net.geertvos.gvm.streams.RandomAccessByteStream;
 /**
  * Geert Virtual Machine main class. 
  * The GVM is a stack based virtual machine that implements a simple instruction set for dynamic object oriented scripting languages. 
- * 
- * It supports the following basic types:
- * - undefined
- * - boolean
- * - number
- * - string
- * - object
  * 
  * @author Geert Vos
  */
