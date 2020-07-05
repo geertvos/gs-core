@@ -16,7 +16,7 @@ public class GVMFunction {
 	private final List<String> parameters;
 	private final List<String> locals  = new ArrayList<String>();
 	private final List<ExceptionHandler> exceptionHandlers = new ArrayList<GVMFunction.ExceptionHandler>();
-	
+	private int index;
 	
 	public GVMFunction( RandomAccessByteStream code , List<String> parameters  )
 	{
@@ -87,6 +87,14 @@ public class GVMFunction {
 	
 	public List<String> getParameters() {
 		return parameters;
+	}
+
+	public void setIndex(int index) {
+		this.index = index;
+	}
+	
+	public int getIndex() {
+		return index;
 	}
 	
 }

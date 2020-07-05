@@ -14,11 +14,21 @@ public class FunctionType implements Type {
 		if(op.equals(Operations.INVOKE)) {
 			return true;
 		}
+		if(op.equals(Operations.EQL)) {
+			return true;
+		}
 		return false;
 	}
 
 	@Override
 	public Value perform(GVMContext context, Operations op, Value thisValue, Value otherValue) {
+		if(op.equals(Operations.EQL)) {
+			if(thisValue.getValue() == otherValue.getValue()) {
+				return new Value(1, new BooleanType());
+			} else {
+				return new Value(0, new BooleanType());
+			}
+		}
 		return new Value(0,new Undefined());
 	}
 
