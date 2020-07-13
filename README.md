@@ -39,6 +39,7 @@ Undefined, Boolean, Object and Function are built in types. For more details che
 | POP | | Pop a value from the stack |
 | NATIVE | | Pop the function from the stack and treat as native function |
 | THROW | | Pop the exception from the stack throw it. |
+| FORK | | Fork the current thread. Push boolean on the stack to identify new and existing thread |
 
 
 
