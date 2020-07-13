@@ -175,6 +175,7 @@ public class GVMThread {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	public GVMThread fork() {
 		Stack<StackFrame> newCallStack = (Stack<StackFrame>) getCallStack().clone(); 
 
