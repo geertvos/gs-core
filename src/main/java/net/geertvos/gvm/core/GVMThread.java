@@ -24,26 +24,29 @@ public class GVMThread {
 
 	private int location; //reference to the name of this module/file/source
 
-	private CountDownLatch threadFinishedLatch = new CountDownLatch(1); 
+	private CountDownLatch threadFinishedLatch = new CountDownLatch(1);
+	private GVM gvm; 
 	
-	public GVMThread(GVMProgram program, GVMHeap heap) {
+	GVMThread(GVM gvm) {
 		this.framepointer = 0;
 		this.functionPointer = 0;
 		this.debugLineNumber = -1;
-		this.heap = heap;
-		this.program = program;
+		this.heap = gvm.getHeap();
+		this.program = gvm.getProgram();
 		this.callStack = new Stack<>();
 		this.stack = new Stack<Value>();
+		this.gvm = gvm;
 	}
 	
-	private GVMThread(GVMProgram program, GVMHeap heap, Stack<StackFrame> callStack, Stack<Value> stack) {
+	private GVMThread(Stack<StackFrame> callStack, Stack<Value> stack, GVM gvm) {
 		this.framepointer = 0;
 		this.functionPointer = 0;
 		this.debugLineNumber = -1;
-		this.heap = heap;
-		this.program = program;
+		this.heap = gvm.getHeap();
+		this.program = gvm.getProgram();
 		this.stack = stack;
 		this.callStack = callStack;
+		this.gvm = gvm;
 	}
 	
 	public int getFramepointer() {
@@ -131,9 +134,8 @@ public class GVMThread {
 		}
 	}
 	
-	void handleException(String message)
+	void handleException(String message, GVMContext context)
 	{
-		GVMContext context = new GVMContext(program, heap, this);
 		Value value = program.getExceptionHandler().convert(message, context, getDebugLineNumber(), getLocation());
 		handleExceptionObject(value);
 	}
@@ -188,7 +190,8 @@ public class GVMThread {
 		newCallStack.add(new StackFrame(toclone.getProgramCounter(), toclone.getFramePointer(), toclone.getCallingFunction(), toclone.getLineNumber(), toclone.getLocation(), newScope));
 
 		Stack<Value> newStack = (Stack<Value>) getStack().clone();
-		GVMThread thread = new GVMThread(program, heap, newCallStack, newStack);
+		GVMThread thread = new GVMThread(newCallStack, newStack, gvm);
+		gvm.spawnThread(thread);
 		thread.setBytecode(this.executingBytecode.clone());
 		thread.executingBytecode.seek(this.executingBytecode.getPointerPosition());
 		thread.setDebugLineNumber(debugLineNumber);

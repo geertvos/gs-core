@@ -18,7 +18,6 @@ public class MarkAndSweepGarbageCollector implements GarbageCollector {
 	public void collect(GVMHeap heap, Collection<GVMThread> threads) {
 		if( heap.size() < currentHeapSizeTreshHold )
 			return;
-		
 		Set<GVMObject> alive = new HashSet<GVMObject>();
 		for(GVMThread thread : threads) {
 			for( Value v : thread.getStack() )

@@ -35,7 +35,8 @@ public class GVM {
 	//Current program
 	private GVMProgram program;
 
-	private Collection<GVMThread> threads = new ConcurrentLinkedDeque<GVMThread>();
+	private Collection<GVMThread> runningThreads = new ConcurrentLinkedDeque<GVMThread>();
+	private Collection<GVMThread> allThreads = new ConcurrentLinkedDeque<GVMThread>();
 	
 	public GVM( GVMProgram program )
 	{
@@ -48,10 +49,32 @@ public class GVM {
 		this.heap = heap;
 	}
 	
+	public GVMHeap getHeap() {
+		return heap;
+	}
+	
+	public GVMProgram getProgram() {
+		return program;
+	}
+	
+	public GVMThread spawnThread() {
+		GVMThread thread = new GVMThread(this);
+		allThreads.add(thread);
+		return thread;
+	}
+	
+	public void spawnThread(GVMThread thread) {
+		allThreads.add(thread);
+	}
+	public void killThread(GVMThread thread) {
+		thread.awaitFinished();
+		allThreads.remove(thread);
+	}
+	
 	public void run()
 	{
-		GVMThread main = new GVMThread(program, heap);
-		threads.add(main);
+		GVMThread main = spawnThread();
+		runningThreads.add(main);
 		heap.clear();
 		
 		//The following bytecode loads function#0 from the program and invokes it without parameters.
@@ -77,14 +100,14 @@ public class GVM {
 	 */
 	private void fetchAndDecodeAll()
 	{
-		while( !threads.isEmpty() )
+		while( !runningThreads.isEmpty() )
 		{
-			Iterator<GVMThread> threadIterator = threads.iterator();
+			Iterator<GVMThread> threadIterator = runningThreads.iterator();
 			while(threadIterator.hasNext()) {
 				GVMThread thread = threadIterator.next();
 				boolean continues = fetchAndDecode(thread);
 				if(!continues) {
-					threads.remove(thread);
+					runningThreads.remove(thread);
 				}
 			}
 		}
@@ -93,20 +116,20 @@ public class GVM {
 	
 	public void inject(GVMThread thread)
 	{
-		if(threads.isEmpty()) {
+		if(runningThreads.isEmpty()) {
 			//VM was already finished
-			threads.add(thread);
+			runningThreads.add(thread);
 			fetchAndDecodeAll();
 		} else {
 			//TODO: Race condition here
-			threads.add(thread);
+			runningThreads.add(thread);
 		}
 		thread.awaitFinished();
 	}
 
 
 	public boolean fetchAndDecode(GVMThread thread) {
-		GVMContext context = new GVMContext(program, heap, thread);
+		GVMContext context = new GVMContext(this, thread);
 		int instruction= GVM.HALT;
 		//Fetch
 		instruction = thread.getBytecode().read();
@@ -120,7 +143,7 @@ public class GVM {
 				Value v = type.perform(context, Operations.NEW, null, (Value)null);
 				context.getThread().getStack().push(v);
 			} else {
-				thread.handleException("Type "+typeName+" does not support NEW.");
+				thread.handleException("Type "+typeName+" does not support NEW.", context);
 			}
 		}
 		break;
@@ -154,7 +177,7 @@ public class GVM {
 				int argCount = thread.getBytecode().readInt();
 				Value calleeFunction = thread.getStack().pop();
 				if( !calleeFunction.getType().supportsOperation(Operations.INVOKE) ){
-					thread.handleException( "Invoking a type that does not support invocation: "+calleeFunction.getType());
+					thread.handleException( "Invoking a type that does not support invocation: "+calleeFunction.getType(), context);
 					break;
 				}
 
@@ -165,7 +188,7 @@ public class GVM {
 				//Obtain the number of parameters
 				int paramCount = functionDescription.getParameters().size() ;
 				if(argCount != paramCount) {
-					thread.handleException( "Argument count for function "+calleeFunction.getValue()+" is "+paramCount+", but "+argCount+" provided.");
+					thread.handleException( "Argument count for function "+calleeFunction.getValue()+" is "+paramCount+", but "+argCount+" provided.", context);
 					break;
 				}
 				
@@ -219,7 +242,7 @@ public class GVM {
 				thread.setBytecode(program.getFunction(thread.getFunctionPointer()).getBytecode().clone());
 				thread.getBytecode().seek(pc);
 				thread.getStack().push(v);
-				gc.collect(heap, threads);
+				gc.collect(heap, allThreads);
 			}
 			break;
 		case PUT:
@@ -235,7 +258,7 @@ public class GVM {
 			Value variableName = thread.getStack().pop();
 			Value reference = thread.getStack().pop();	//pop value which must be a reference to object
 			if(!reference.getType().supportsOperation(Operations.GET)) {
-				thread.handleException( "Type does not support get operation: "+reference+" pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer());
+				thread.handleException( "Type does not support get operation: "+reference+" pc: "+thread.getBytecode().getPointerPosition()+" f:"+thread.getFunctionPointer(), context);
 				break;
 			}
 			Value value = reference.getType().perform(context, Operations.GET, reference, variableName);
@@ -266,6 +289,7 @@ public class GVM {
 		case HALT:
 			{
 				thread.markThreadFinished();
+				this.killThread(thread);
 				return false;
 			}
 		case ADD: 
@@ -276,7 +300,7 @@ public class GVM {
 				Value result = arg1.getType().perform(context, Operations.ADD, arg1, arg2);
 				thread.getStack().push(result);
 			}
-			else thread.handleException("Type "+arg1.getType().getName()+" does not support addition.");
+			else thread.handleException("Type "+arg1.getType().getName()+" does not support addition.", context);
 			break;
 		}
 		case SUB: 
@@ -287,7 +311,7 @@ public class GVM {
 				Value result = arg1.getType().perform(context, Operations.SUB, arg1, arg2);
 				thread.getStack().push(result);
 			}
-			else thread.handleException("Type "+arg1.getType().getName()+" does not support substraction.");
+			else thread.handleException("Type "+arg1.getType().getName()+" does not support substraction.", context);
 			break;
 		}
 		case MULT: 
@@ -298,7 +322,7 @@ public class GVM {
 				Value result = arg1.getType().perform(context, Operations.MULT, arg1, arg2);
 				thread.getStack().push(result);
 			}
-			else thread.handleException("Type "+arg1.getType().getName()+" does not support multiplication.");
+			else thread.handleException("Type "+arg1.getType().getName()+" does not support multiplication.", context);
 			break;
 		}
 		case DIV: 
@@ -309,7 +333,7 @@ public class GVM {
 				Value result = arg1.getType().perform(context, Operations.DIV, arg1, arg2);
 				thread.getStack().push(result);
 			}
-			else thread.handleException("Type "+arg1.getType().getName()+" does not support division.");
+			else thread.handleException("Type "+arg1.getType().getName()+" does not support division.", context);
 			break;
 		}
 		case MOD: 
@@ -320,7 +344,7 @@ public class GVM {
 				Value result = arg1.getType().perform(context, Operations.MOD, arg1, arg2);
 				thread.getStack().push(result);
 			}
-			else thread.handleException( "Type "+arg1.getType().getName()+" does not support modulo.");
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support modulo.", context);
 			break;
 		}
 		case AND: 
@@ -331,7 +355,7 @@ public class GVM {
 				Value result = arg1.getType().perform(context, Operations.AND, arg1, arg2);
 				thread.getStack().push(result);
 			}
-			else thread.handleException( "Type "+arg1.getType().getName()+" does not support AND.");
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support AND.", context);
 			break;
 		}
 		case OR: 
@@ -342,7 +366,7 @@ public class GVM {
 				Value result = arg1.getType().perform(context, Operations.OR, arg1, arg2);
 				thread.getStack().push(result);
 			}
-			else thread.handleException( "Type "+arg1.getType().getName()+" does not support OR.");
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support OR.", context);
 			break;
 		}
 		case NOT: 
@@ -352,7 +376,7 @@ public class GVM {
 				Value result = arg1.getType().perform(context, Operations.NOT, arg1, (Value)null);
 				thread.getStack().push(result);
 			}
-			else thread.handleException( "Type "+arg1.getType().getName()+" does not support NOT.");
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support NOT.", context);
 			break;
 		}
 		case EQL: 
@@ -363,7 +387,7 @@ public class GVM {
 				Value result = arg1.getType().perform(context, Operations.EQL, arg1, arg2);
 				thread.getStack().push(result);
 			}
-			else thread.handleException( "Type "+arg1.getType().getName()+" does not support EQL.");
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support EQL.", context);
 			break;
 		}
 		case LT: 
@@ -374,7 +398,7 @@ public class GVM {
 				Value result = arg1.getType().perform(context, Operations.LT, arg1, arg2);
 				thread.getStack().push(result);
 			}
-			else thread.handleException( "Type "+arg1.getType().getName()+" does not support LT.");
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support LT.", context);
 			break;
 		}
 		case GT: 
@@ -385,7 +409,7 @@ public class GVM {
 				Value result = arg1.getType().perform(context, Operations.GT, arg1, arg2);
 				thread.getStack().push(result);
 			}
-			else thread.handleException( "Type "+arg1.getType().getName()+" does not support GT.");
+			else thread.handleException( "Type "+arg1.getType().getName()+" does not support GT.", context);
 			break;
 		}
 		case JMP: 
@@ -414,7 +438,7 @@ public class GVM {
 			Value arg = thread.getStack().pop();
 			if (!arg.getType().supportsOperation(Operations.INVOKE))
 			{
-				thread.handleException( "Type: "+arg.getType().getName()+" does not support invocation.");
+				thread.handleException( "Type: "+arg.getType().getName()+" does not support invocation.", context);
 				break;
 			}
 			//TODO: Can we link what to invoke to the type somehow?
@@ -424,17 +448,17 @@ public class GVM {
 				args.add( thread.getStack().pop() );
 			
 			try {
-				Value returnVal = wrapper.invoke(args , new GVMContext(program, heap, thread));
+				Value returnVal = wrapper.invoke(args , new GVMContext(this, thread));
 				thread.getStack().push(returnVal);
 			} catch(Exception e) {
 				if(e instanceof InvocationTargetException) {
 					Throwable cause = ((InvocationTargetException)e).getCause();
-					thread.handleException( cause.getMessage());
+					thread.handleException( cause.getMessage(), context);
 					break;
 				}
-				thread.handleException( e.getMessage());
+				thread.handleException( e.getMessage(), context);
 			}
-			this.gc.collect(heap, threads);
+			this.gc.collect(heap, allThreads);
 			break;
 		}	
 		case THROW: {
@@ -456,7 +480,7 @@ public class GVM {
 		}
 		case FORK: {
 			GVMThread newThread = thread.fork();
-			threads.add(newThread);
+			runningThreads.add(newThread);
 			break;
 		}
 		default:
@@ -505,5 +529,6 @@ public class GVM {
 	//Debug
 	public static final byte DEBUG=32;      //Tell the VM about the code that is being executed. For deubgging purposes.
 	public static final byte BREAKPOINT=33; //Tell the VM to pause and allow for inspection of heap and stack.
+
 
 }
