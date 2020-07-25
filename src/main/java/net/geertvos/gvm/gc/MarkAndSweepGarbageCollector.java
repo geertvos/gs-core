@@ -12,7 +12,7 @@ import net.geertvos.gvm.program.GVMHeap;
 
 public class MarkAndSweepGarbageCollector implements GarbageCollector {
 
-	private int currentHeapSizeTreshHold = 20;
+	private int currentHeapSizeTreshHold = 200;
 	
 	@Override
 	public void collect(GVMHeap heap, Collection<GVMThread> threads) {
