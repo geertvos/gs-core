@@ -17,6 +17,7 @@ public class GVMFunction {
 	private final List<String> locals  = new ArrayList<String>();
 	private final List<ExceptionHandler> exceptionHandlers = new ArrayList<GVMFunction.ExceptionHandler>();
 	private int index;
+	private String debugName;
 	
 	public GVMFunction( RandomAccessByteStream code , List<String> parameters  )
 	{
@@ -85,6 +86,14 @@ public class GVMFunction {
 		}
 	}
 	
+	public List<int[]> getExceptionHandlers() {
+		List<int[]> result = new ArrayList<>();
+		for (ExceptionHandler e : exceptionHandlers) {
+			result.add(new int[]{e.trystart, e.tryend, e.catchstart});
+		}
+		return result;
+	}
+
 	public List<String> getParameters() {
 		return parameters;
 	}
@@ -96,5 +105,13 @@ public class GVMFunction {
 	public int getIndex() {
 		return index;
 	}
-	
+
+	public String getDebugName() {
+		return debugName;
+	}
+
+	public void setDebugName(String debugName) {
+		this.debugName = debugName;
+	}
+
 }

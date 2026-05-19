@@ -96,6 +96,14 @@ public class GVMProgram {
 		return id;
 	}
 
+	public void addFunction(int id, GVMFunction function) {
+		functions.put(id, function);
+		int next = id + 1;
+		if (next > functionCounter.get()) {
+			functionCounter.set(next);
+		}
+	}
+
 	public void deleteFunction(int id) {
 		functions.remove(id);
 	}

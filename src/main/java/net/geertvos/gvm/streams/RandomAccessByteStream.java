@@ -98,8 +98,9 @@ public class RandomAccessByteStream {
 				buffers.add(new byte[blocksize]);
 			}
 			int localPointer = pointer - (bufferNumber * blocksize);
-			int copy = (buf.length - bp > blocksize) ? blocksize - localPointer
-					: (buf.length - bp);
+			int remainingInBlock = blocksize - localPointer;
+			int remainingInBuf = buf.length - bp;
+			int copy = Math.min(remainingInBlock, remainingInBuf);
 			byte[] buffer = buffers.get(bufferNumber);
 			for (int x = 0; x < copy; x++) {
 				buffer[localPointer + x] = buf[bp + x];
@@ -107,31 +108,25 @@ public class RandomAccessByteStream {
 			pointer += copy;
 			bp += copy;
 		}
-		size += buf.length;
+		if (pointer > size) {
+			size = pointer;
+		}
 	}
 
 	public byte[] read(int len) {
 		byte[] data = new byte[len];
 		int read = 0;
-		int bufferNumber = pointer / blocksize;
-		int localPointer = pointer - (bufferNumber * blocksize);
 		int toRead = len;
 		while (toRead > 0) {
-			if (toRead <= blocksize - localPointer) {
-				byte[] buffer = buffers.get(bufferNumber);
-				for (int i = 0; i < toRead; i++) {
-					data[read] = buffer[localPointer + i];
-					pointer++;
-					read++;
-				}
-			} else {
-				bufferNumber = pointer / blocksize;
-				byte[] buffer = buffers.get(bufferNumber);
-				for (int i = 0; i < blocksize; i++) {
-					data[read] = buffer[localPointer + i];
-					pointer++;
-					read++;
-				}
+			int bufferNumber = pointer / blocksize;
+			int localPointer = pointer - (bufferNumber * blocksize);
+			int remainingInBlock = blocksize - localPointer;
+			int copy = Math.min(toRead, remainingInBlock);
+			byte[] buffer = buffers.get(bufferNumber);
+			for (int i = 0; i < copy; i++) {
+				data[read] = buffer[localPointer + i];
+				pointer++;
+				read++;
 			}
 			toRead = len - read;
 		}
@@ -337,12 +332,10 @@ public class RandomAccessByteStream {
 				byte[] buf = buffers.get(currentBlock);
 				stream.write(buf, 0, buf.length);
 				toWrite -= buf.length;
-				printArray("Written: ", buf);
 				currentBlock++;
 			} else {
 				byte[] buf = buffers.get(currentBlock);
 				stream.write(buf, 0, toWrite);
-				printArray("Written: ", buf, toWrite);
 				toWrite -= buf.length;
 			}
 		}
@@ -393,15 +386,20 @@ public class RandomAccessByteStream {
 	 */
 	public void readFrom(InputStream stream) throws IOException {
 		buffers.clear();
-		int length = 0;
 		pointer = 0;
 		size = 0;
-		byte[] buf = new byte[blocksize];
-		while ((length = stream.read(buf)) > 0) {
+		while (true) {
+			byte[] buf = new byte[blocksize];
+			int filled = 0;
+			while (filled < blocksize) {
+				int n = stream.read(buf, filled, blocksize - filled);
+				if (n <= 0) break;
+				filled += n;
+			}
+			if (filled == 0) break;
 			buffers.add(buf);
-			printArray("Read: ", buf, length);
-			buf = new byte[blocksize];
-			size += length;
+			size += filled;
+			if (filled < blocksize) break;
 		}
 	}
 
